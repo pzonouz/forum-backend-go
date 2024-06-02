@@ -5,14 +5,30 @@ import (
 	"log"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+
+	"forum-backend-go/ineternal/utils"
 )
 
 type Database interface {
 	getDB() *sql.DB
+	InitDB()
+	RunQueryOnDB(string)
 }
 
 type database struct {
 	db *sql.DB
+}
+
+func (d *database) InitDB() {
+	d.RunQueryOnDB(utils.CreateUserTableQuery)
+
+}
+
+func (d *database) RunQueryOnDB(query string) {
+	_, err := d.db.Exec(query)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 }
 
 func NewDatabase() *database {

@@ -1,0 +1,10 @@
+linters:
+    enable-all: true
+    disable:
+      - depguard
+      - gci
+      - exhaustruct
+      - gofumpt
+      - varnamelen
+
+

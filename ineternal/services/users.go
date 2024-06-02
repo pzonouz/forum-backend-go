@@ -2,11 +2,13 @@ package services
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 
 	"github.com/gorilla/mux"
 
 	"forum-backend-go/ineternal/models"
+	"forum-backend-go/ineternal/utils"
 )
 
 type Service[T any] interface {
@@ -17,10 +19,10 @@ type Service[T any] interface {
 	PatchHandler(w http.ResponseWriter, r *http.Request)
 	DeleteHandler(w http.ResponseWriter, r *http.Request)
 	GetAll() ([]T, error)
-	GetByID(int) (T, error)
-	Create(T) error
-	EditByID(T) error
-	DeleteByID(int) error
+	GetByID(id int) (T, error)
+	Create(user T) error
+	EditByID(user T) error
+	DeleteByID(id int) error
 }
 
 func NewUserService(db *sql.DB, router *mux.Router) *UserService {
@@ -36,7 +38,7 @@ type UserService struct {
 
 // Create implements Service.
 func (u *UserService) Create(user models.User) error {
-	panic("unimplemented")
+	return errors.New("")
 }
 
 // DeleteByID implements Service.
@@ -66,9 +68,7 @@ func (u *UserService) GetByID(int) (models.User, error) {
 
 // GetHandler implements Service.
 func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	id := params["id"]
-	w.Write([]byte(id))
+	// params := mux.Vars(r)
 }
 
 // GetHandlerForPlurar implements Service.
@@ -83,15 +83,25 @@ func (u *UserService) PatchHandler(w http.ResponseWriter, r *http.Request) {
 
 // PostHandler implements Service.
 func (u *UserService) PostHandler(w http.ResponseWriter, r *http.Request) {
-	panic("unimplemented")
+	user := utils.ReadJSON[models.User](w, r)
+	err := u.Create(user)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
 }
 
 // registerRoutes implements Service.
 func (u *UserService) RegisterRoutes() {
 	router := u.router
-	API_V1_Router := router.PathPrefix("/api/v1/").Subrouter()
-	API_V1_Router.HandleFunc("", u.GetHandlerForPlurar)
-	UsersRouter := API_V1_Router.PathPrefix("/users/").Subrouter()
-	UsersRouter.HandleFunc("/", u.GetHandlerForPlurar)
-	UsersRouter.HandleFunc("/{id}", u.GetHandler)
+	APIV1Router := router.PathPrefix("/api/v1/").Subrouter()
+	APIV1Router.HandleFunc("", u.GetHandlerForPlurar)
+	UsersRouter := APIV1Router.PathPrefix("/users/").Subrouter()
+	UsersRouter.HandleFunc("/", u.GetHandlerForPlurar).Methods("GET")
+	UsersRouter.HandleFunc("/{id}", u.GetHandler).Methods("GET")
+	UsersRouter.HandleFunc("/", u.PostHandler).Methods("POST")
+	UsersRouter.HandleFunc("/{id}", u.PatchHandler).Methods("PATCH")
+	UsersRouter.HandleFunc("/{id}", u.DeleteHandler).Methods("DELETE")
 }

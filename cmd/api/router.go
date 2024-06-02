@@ -10,7 +10,7 @@ import (
 )
 
 type Router interface {
-	registerRoutes(*sql.DB)
+	registerRoutes(db *sql.DB)
 	getMux() *mux.Router
 }
 
@@ -27,10 +27,11 @@ func (r *router) getMux() *mux.Router {
 // registerRoutes implements Router.
 func (r *router) registerRoutes(db *sql.DB) {
 	var userService services.Service[models.User] = services.NewUserService(db, r.getMux())
+
 	userService.RegisterRoutes()
 }
 
-func NewRouter(db *sql.DB) *router {
+func newRouter(db *sql.DB) *router {
 	return &router{
 		mux: mux.NewRouter(),
 		db:  db,
