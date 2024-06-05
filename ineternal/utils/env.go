@@ -1,4 +1,4 @@
-package main
+package utils
 
 import "os"
 
@@ -7,5 +7,6 @@ func GetEnv(env string, fallback string) string {
 	if len(value) == 0 {
 		return fallback
 	}
+
 	return value
 }

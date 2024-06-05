@@ -6,5 +6,7 @@ linters:
       - exhaustruct
       - gofumpt
       - varnamelen
+      - wrapcheck
+      - lll
 
 

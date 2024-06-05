@@ -1,15 +1,22 @@
 package main
 
+import (
+	"log"
+
+	"forum-backend-go/ineternal/utils"
+)
+
 func main() {
-	var database Database = NewDatabase()
+	var database utils.Database = utils.NewDatabase()
 
-	database.InitDB()
-
-	db := database.getDB()
+	db, err := database.GetDB(false)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 	defer db.Close()
 
 	var router Router = newRouter(db)
 
-	router.registerRoutes(db)
+	router.registerRoutes()
 	newServer(router.getMux()).serve()
 }
