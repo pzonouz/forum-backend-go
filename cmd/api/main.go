@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"forum-backend-go/ineternal/utils"
+	"forum-backend-go/internal/utils"
 )
 
 func main() {

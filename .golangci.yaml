@@ -8,5 +8,10 @@ linters:
       - varnamelen
       - wrapcheck
       - lll
+      - forcetypeassert 
+      - interfacebloat
+      - err113
+      - intrange
+      - gocritic
 
 

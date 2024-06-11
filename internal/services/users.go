@@ -3,26 +3,13 @@ package services
 import (
 	"database/sql"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 
-	"forum-backend-go/ineternal/models"
-	"forum-backend-go/ineternal/utils"
+	"forum-backend-go/internal/models"
+	"forum-backend-go/internal/utils"
 )
-
-type Service[T any] interface {
-	RegisterRoutes()
-	GetHandler(w http.ResponseWriter, r *http.Request)
-	GetHandlerForPlurar(w http.ResponseWriter, r *http.Request)
-	PostHandler(w http.ResponseWriter, r *http.Request)
-	PatchHandler(w http.ResponseWriter, r *http.Request)
-	DeleteHandler(w http.ResponseWriter, r *http.Request)
-	GetAll() ([]T, error)
-	GetByID(isTest bool, id int64) (T, error)
-	Create(isTest bool, user T) (int64, error)
-	EditByID(isTest bool, id int64, user T) error
-	DeleteByID(isTest bool, id int64) error
-}
 
 func NewUserService(db *sql.DB, router *mux.Router) *UserService {
 	return &UserService{
@@ -38,27 +25,9 @@ type UserService struct {
 // Create implements Service.
 func (u *UserService) Create(isTest bool, user models.User) (int64, error) {
 	var id int64
-
-	var smtmt *sql.Stmt
-
-	var err error
-
-	if isTest {
-		smtmt, err = u.db.Prepare(utils.CreateUserQueryTest)
-	} else {
-		smtmt, err = u.db.Prepare(utils.CreateUserQuery)
-	}
-
+	id, err := Create(false, "users", user, u.db, nil)
 	if err != nil {
-		return 0, err
-	}
-
-	err = smtmt.QueryRow(user.Email, user.Password, user.FirstName, user.LastName, user.Address, user.PhoneNumber).Scan(&id)
-
-	defer smtmt.Close()
-
-	if err != nil {
-		return 0, err
+		return -1, err
 	}
 
 	return id, nil
@@ -101,7 +70,12 @@ func (u *UserService) EditByID(isTest bool, id int64, user models.User) error {
 	var stmt *sql.Stmt
 
 	var err error
-	stmt, err = u.db.Prepare(utils.EditUserQueryTest)
+
+	if isTest {
+		stmt, err = u.db.Prepare(utils.EditUserQueryTest)
+	} else {
+		stmt, err = u.db.Prepare(utils.EditUserQuery)
+	}
 
 	if err != nil {
 		return err
@@ -124,41 +98,78 @@ func (u *UserService) GetAll() ([]models.User, error) {
 
 // GetByID implements Service.
 func (u *UserService) GetByID(isTest bool, id int64) (models.User, error) {
-	var user models.User
-
-	var stmt *sql.Stmt
-
-	var err error
-
-	if isTest {
-		stmt, err = u.db.Prepare(`SELECT * from users_test where id=$1`)
-	} else {
-		stmt, err = u.db.Prepare(`SELECT * from users where id=$1`)
-	}
-
+	var excluded_fields []string
+	excluded_fields = append(excluded_fields, "id")
+	user, err := Get[models.User](isTest, "users", u.db, "id", strconv.Itoa(int(id)), excluded_fields)
 	if err != nil {
-		return user, err
+		return *user, err
 	}
-	err = stmt.QueryRow(id).Scan(&user.ID, &user.Email, &user.Password, &user.FirstName, &user.LastName, &user.Address, &user.PhoneNumber, &user.CreatedAt)
+	return *user, nil
+	// var user models.User
 
-	defer stmt.Close()
+	// var stmt *sql.Stmt
 
-	return user, err
+	// var err error
+
+	// if isTest {
+	// 	stmt, err = u.db.Prepare(`SELECT id,email,first_name,last_name,address,phone_number,created_at from users_test where id=$1`)
+	// } else {
+	// 	stmt, err = u.db.Prepare(`SELECT id,email,first_name,last_name,address,phone_number,created_at from users where id=$1`)
+	// }
+
+	// if err != nil {
+	// 	return user, err
+	// }
+
+	// err = stmt.QueryRow(id).Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.Address, &user.PhoneNumber, &user.CreatedAt)
+
+	// defer stmt.Close()
+
+	// return user, err
 }
 
 // GetHandler implements Service.
 func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
-	// params := mux.Vars(r)
+	params := mux.Vars(r)
+	id, err := strconv.Atoi(params["id"])
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	user, err := u.GetByID(false, int64(id))
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	utils.WriteJSON(w, user)
 }
 
-// GetHandlerForPlurar implements Service.
-func (u *UserService) GetHandlerForPlurar(w http.ResponseWriter, r *http.Request) {
+// GetHandlerForPlural implements Service.
+func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Users"))
 }
 
 // PatchHandler implements Service.
 func (u *UserService) PatchHandler(w http.ResponseWriter, r *http.Request) {
-	panic("unimplemented")
+	id := mux.Vars(r)["id"]
+	user := utils.ReadJSON[models.User](w, r)
+	ID, err := strconv.Atoi(id)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	err = u.EditByID(false, int64(ID), user)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
 }
 
 // PostHandler implements Service.
@@ -183,9 +194,9 @@ func (u *UserService) PostHandler(w http.ResponseWriter, r *http.Request) {
 func (u *UserService) RegisterRoutes() {
 	router := u.router
 	APIV1Router := router.PathPrefix("/api/v1/").Subrouter()
-	APIV1Router.HandleFunc("", u.GetHandlerForPlurar)
+	APIV1Router.HandleFunc("", u.GetHandlerForPlural)
 	UsersRouter := APIV1Router.PathPrefix("/users/").Subrouter()
-	UsersRouter.HandleFunc("/", u.GetHandlerForPlurar).Methods("GET")
+	UsersRouter.HandleFunc("/", u.GetHandlerForPlural).Methods("GET")
 	UsersRouter.HandleFunc("/{id}", u.GetHandler).Methods("GET")
 	UsersRouter.HandleFunc("/register", u.PostHandler).Methods("POST")
 	UsersRouter.HandleFunc("/{id}", u.PatchHandler).Methods("PATCH")

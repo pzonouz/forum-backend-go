@@ -2,7 +2,7 @@ package utils
 
 const CreateUserTableQuery = `CREATE TABLE IF NOT EXISTS "users" (
   "id" bigserial PRIMARY KEY,
-  "email" varchar,
+  "email" varchar UNIQUE,
   "password" varchar,
   "first_name" varchar,
   "last_name" varchar,
@@ -13,7 +13,7 @@ const CreateUserTableQuery = `CREATE TABLE IF NOT EXISTS "users" (
 
 const CreateUserTableQueryTest = `CREATE TABLE IF NOT EXISTS "users_test" (
   "id" bigserial PRIMARY KEY,
-  "email" varchar,
+  "email" varchar UNIQUE,
   "password" varchar,
   "first_name" varchar,
   "last_name" varchar,
@@ -28,7 +28,7 @@ const CreateUserQueryTest = `INSERT INTO "users_test" ("email","password","first
 
 const EditUserQueryTest = `UPDATE users_test SET first_name=$1,last_name=$2,address=$3,phone_number=$4 WHERE id=$5`
 
-const EditUserQuery = `UPDATE users SET first_name=$1,last_name=$2,address=$3,phone_number=$4`
+const EditUserQuery = `UPDATE users SET first_name=$1,last_name=$2,address=$3,phone_number=$4 WHERE id=$5`
 
 const DeleteUserByIDQuery = `DELETE FROM "users" WHERE "id"=$1`
 

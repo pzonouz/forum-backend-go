@@ -5,8 +5,8 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"forum-backend-go/ineternal/models"
-	"forum-backend-go/ineternal/services"
+	"forum-backend-go/internal/models"
+	"forum-backend-go/internal/services"
 )
 
 type Router interface {

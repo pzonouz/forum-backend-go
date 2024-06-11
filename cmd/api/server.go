@@ -7,7 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"forum-backend-go/ineternal/utils"
+	"forum-backend-go/internal/utils"
 )
 
 type server struct {

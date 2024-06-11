@@ -11,6 +11,7 @@ import (
 type Database interface {
 	GetDB(isTest bool) (*sql.DB, error)
 	RunQueryOnDB(query string) error
+	// QueryRow(tableName string)
 }
 
 type database struct {
