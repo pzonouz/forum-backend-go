@@ -25,7 +25,7 @@ type UserService struct {
 // Create implements Service.
 func (u *UserService) Create(isTest bool, user models.User) (int64, error) {
 	var id int64
-	id, err := Create(false, "users", user, u.db, nil)
+	id, err := Create[models.User](isTest, "users", user, u.db)
 	if err != nil {
 		return -1, err
 	}
