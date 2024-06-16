@@ -29,6 +29,7 @@ type UserService struct {
 func (u *UserService) Create(isTest bool, user models.User) (int64, error) {
 	var id int64
 	id, err := Create[models.User](isTest, "users", user, u.db)
+
 	if err != nil {
 		return -1, err
 	}
@@ -70,28 +71,7 @@ func (u *UserService) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 
 // EditByID implements Service.
 func (u *UserService) EditByID(isTest bool, id int64, user models.User) error {
-	var stmt *sql.Stmt
-
-	var err error
-
-	if isTest {
-		stmt, err = u.db.Prepare(utils.EditUserQueryTest)
-	} else {
-		stmt, err = u.db.Prepare(utils.EditUserQuery)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	_, err = stmt.Exec(user.Name, user.Address, user.PhoneNumber, id)
-	defer stmt.Close()
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return EditByID(isTest, "users", u.db, id, user)
 }
 
 // GetAll implements Service.
@@ -99,6 +79,7 @@ func (u *UserService) GetAll() ([]*models.User, error) {
 	var excludedFields []string
 	excludedFields = append(excludedFields, "id")
 	users, err := GetAll[models.User](false, "users", u.db, "20", "", "", excludedFields)
+
 	if err != nil {
 		return users, err
 	}
@@ -111,6 +92,7 @@ func (u *UserService) GetByID(isTest bool, id int64) (models.User, error) {
 	var excludedFields []string
 	excludedFields = append(excludedFields, "id")
 	user, err := Get[models.User](isTest, "users", u.db, "id", strconv.Itoa(int(id)), excludedFields)
+
 	if err != nil {
 		return *user, err
 	}
@@ -141,7 +123,7 @@ func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetHandlerForPlural implements Service.
-func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, r *http.Request) {
+func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, _ *http.Request) {
 	users, err := u.GetAll()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -173,11 +155,13 @@ func (u *UserService) PatchHandler(w http.ResponseWriter, r *http.Request) {
 func (u *UserService) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	user := utils.ReadJSON[models.User](w, r)
 	encryptedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), 3)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
 	}
+
 	user.Password = string(encryptedPassword)
 	id, err := u.Create(false, user)
 
@@ -196,24 +180,32 @@ func (u *UserService) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	userJSON := utils.ReadJSON[models.User](w, r)
+
 	var excludedFields []string
 	user, err := Get[models.User](false, "users", u.db, "email", userJSON.Email, excludedFields)
+
 	if err != nil {
-		http.Error(w, "Login and Password does not match", 401)
+		http.Error(w, "Login and Password does not match", http.StatusUnauthorized)
+
 		return
 	}
+
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(userJSON.Password))
 	if err != nil {
-		http.Error(w, "Login and Password does not match", 401)
+		http.Error(w, "Login and Password does not match", http.StatusUnauthorized)
+
 		return
 	}
 	expired := time.Now().Add(time.Hour * 24)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"id": user.ID, "expired": expired.Unix()})
 	signedToken, err := token.SignedString([]byte("secret"))
+
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
 		return
 	}
+
 	cookie := http.Cookie{
 		Path:     "/",
 		Name:     "access",
@@ -223,7 +215,7 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	}
 	http.SetCookie(w, &cookie)
-	w.Write([]byte(signedToken))
+	_, _ = w.Write([]byte(signedToken))
 }
 
 // registerRoutes implements Service.

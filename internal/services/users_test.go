@@ -21,7 +21,7 @@ func TestUserService(t *testing.T) {
 	require.NoError(err)
 
 	userService := services.NewUserService(db, mux.NewRouter())
-	want := models.User{Email: "example@example.com", Password: "dddddd", FirstName: "fname", LastName: "lname", Address: "Addffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", PhoneNumber: "09148998933"}
+	want := models.User{Email: "example@example.com", Password: "dddddd", Name: "fname", Address: "Addffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", PhoneNumber: "09148998933"}
 	id, err := userService.Create(true, want)
 	require.NoError(err)
 	assert.NotZero(id)
@@ -31,13 +31,12 @@ func TestUserService(t *testing.T) {
 
 	get, err := userService.GetByID(true, id)
 	require.NoError(err)
-	assert.Equal(want.FirstName, get.FirstName)
-	assert.Equal(want.LastName, get.LastName)
+	assert.Equal(want.Name, get.Name)
 	assert.Equal(want.Address, get.Address)
 	assert.Equal(want.PhoneNumber, get.PhoneNumber)
 
 	// Email and Password could not change by this commands
-	want = models.User{FirstName: "ame", LastName: "ame", Address: "Addfffffffffffffffffffffffffffffffffffffffff", PhoneNumber: "09998933"}
+	want = models.User{Name: "ame", Address: "Addfffffffffffffffffffffffffffffffffffffffff", PhoneNumber: "09998933"}
 	err = userService.EditByID(true, id, want)
 
 	if err != nil {
@@ -46,13 +45,13 @@ func TestUserService(t *testing.T) {
 
 	get, err = userService.GetByID(true, id)
 	require.NoError(err)
-	assert.Equal(want.FirstName, get.FirstName)
-	assert.Equal(want.LastName, get.LastName)
+	assert.Equal(want.Name, get.Name)
+	assert.Equal(want.Name, get.Name)
 	assert.Equal(want.Address, get.Address)
 	assert.Equal(want.PhoneNumber, get.PhoneNumber)
 	// Partially edit
 	// Email and Password could not change by this commands
-	partialEdited := models.User{Email: "dff"}
+	partialEdited := models.User{Name: want.Name}
 	err = userService.EditByID(true, id, partialEdited)
 
 	if err != nil {
@@ -61,8 +60,7 @@ func TestUserService(t *testing.T) {
 
 	get, err = userService.GetByID(true, id)
 	require.NoError(err)
-	assert.Equal(want.FirstName, get.FirstName)
-	assert.Equal(want.LastName, get.LastName)
+	assert.Equal(want.Name, get.Name)
 	assert.Equal(want.Address, get.Address)
 	assert.Equal(want.PhoneNumber, get.PhoneNumber)
 
