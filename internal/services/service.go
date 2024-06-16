@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/http"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -13,12 +12,7 @@ import (
 
 type Service[T any] interface {
 	RegisterRoutes()
-	GetHandler(w http.ResponseWriter, r *http.Request)
-	GetHandlerForPlural(w http.ResponseWriter, r *http.Request)
-	PostHandler(w http.ResponseWriter, r *http.Request)
-	PatchHandler(w http.ResponseWriter, r *http.Request)
-	DeleteHandler(w http.ResponseWriter, r *http.Request)
-	GetAll() ([]T, error)
+	GetAll() ([]*T, error)
 	GetByID(isTest bool, id int64) (T, error)
 	Create(isTest bool, user T) (int64, error)
 	EditByID(isTest bool, id int64, user T) error
@@ -26,7 +20,6 @@ type Service[T any] interface {
 }
 
 func Create[T any](isTest bool, tableName string, instance T, db *sql.DB) (int64, error) {
-
 	var excludedFieldsOfModel []string
 	excludedFieldsOfModel = append(excludedFieldsOfModel, "CreatedAt", "ID")
 
@@ -48,11 +41,12 @@ func Create[T any](isTest bool, tableName string, instance T, db *sql.DB) (int64
 		sql := re.FindAllStringSubmatch(string(t.Field(i).Tag), 1)
 
 		var j int
-		for j, _ = range excludedFieldsOfModel {
+		for j = range excludedFieldsOfModel {
 			if t.Field(i).Name == excludedFieldsOfModel[j] {
 				goto down1
 			}
 		}
+
 		query += `"`
 		query += sql[0][1]
 		query += `"`
@@ -68,7 +62,7 @@ func Create[T any](isTest bool, tableName string, instance T, db *sql.DB) (int64
 
 	for i := 0; i < t.NumField(); i++ {
 		var j int
-		for j, _ = range excludedFieldsOfModel {
+		for j = range excludedFieldsOfModel {
 			if t.Field(i).Name == excludedFieldsOfModel[j] {
 				goto down
 			}
@@ -90,7 +84,7 @@ func Create[T any](isTest bool, tableName string, instance T, db *sql.DB) (int64
 
 	defer stmt.Close()
 
-	return QueryRowWithStruct[T](stmt, excludedFieldsOfModel, instance)
+	return QueryRowWithStruct(stmt, excludedFieldsOfModel, instance)
 }
 
 func Edit[T any](isTest bool, tableName string, instance T, db *sql.DB, excluded_fields []string) error {
@@ -108,35 +102,43 @@ func Edit[T any](isTest bool, tableName string, instance T, db *sql.DB, excluded
 	query += `" `
 	query += `(`
 	t := reflect.TypeOf(&instance)
+
 	if t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct {
 		t = t.Elem()
 	} else {
 		return errors.New("must be struct")
 	}
+
 	for i := 0; i < t.NumField(); i++ {
 		re := regexp.MustCompile(`sql:\"(\w+)\"`)
 		sql := re.FindAllStringSubmatch(string(t.Field(i).Tag), 1)
+
 		for j := range excluded_fields {
 			if sql[0][1] == excluded_fields[j] {
 				goto down
 			}
 		}
+
 		query += `"`
 		query += sql[0][1]
 		query += `"`
 		query += `,`
 	down:
 	}
+
 	query = query[:len(query)-1]
 	query += `)`
 	query += ` VALUES `
 	query += `(`
+
 	for i := 0; i < t.NumField(); i++ {
 		re := regexp.MustCompile(`sql:\"(\w+)\"`)
 		sql := re.FindAllStringSubmatch(string(t.Field(i).Tag), 1)
+
 		if (sql[0][1] == "id") || (sql[0][1] == "created_at") {
 			continue
 		}
+
 		query += `$`
 		query += strconv.Itoa(i)
 		query += `,`
@@ -186,7 +188,6 @@ func Edit[T any](isTest bool, tableName string, instance T, db *sql.DB, excluded
 }
 
 func Get[T any](isTest bool, tableName string, db *sql.DB, searchField string, searchFieldValue string, excludedFieldsOfModel []string) (*T, error) {
-	excludedFieldsOfModel = append(excludedFieldsOfModel, "Password")
 	query := `SELECT * `
 	query += `FROM `
 	query += `"`
@@ -209,67 +210,140 @@ func Get[T any](isTest bool, tableName string, db *sql.DB, searchField string, s
 
 	defer stmt.Close()
 
-	return QueryRowToStruct[T](stmt, excludedFieldsOfModel, searchFieldValue)
+	rows, err := QueryRowsToStruct[T](stmt, excludedFieldsOfModel, searchFieldValue)
+	if len(rows) == 0 {
+		return new(T), errors.New("not found")
+	}
+
+	return rows[0], err
 }
 
-func QueryRowToStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, args ...any) (*T, error) {
-	var params []any
+func GetAll[T any](isTest bool, tableName string, db *sql.DB, limit string, searchField string, searchFieldValue string, excludedFieldsOfModel []string) ([]*T, error) {
+
+	var objects []*T
+
+	query := `SELECT * `
+	query += `FROM `
+
+	if isTest {
+		query += tableName + `_test`
+	} else {
+		query += tableName
+	}
+
+	if len(searchField) == 0 {
+		query += ` LIMIT `
+		query += ` $1`
+	} else {
+		query += ` LIMIT `
+		query += ` $1`
+		query += ` WHERE `
+		query += searchField
+		query += ` $2`
+	}
+
+	stmt, err := db.Prepare(query)
+
+	if err != nil {
+		return objects, err
+	}
+
+	defer stmt.Close()
+
+	var rows []*T
+
+	if len(searchField) != 0 {
+		rows, err = QueryRowsToStruct[T](stmt, excludedFieldsOfModel, searchFieldValue, 10)
+	} else {
+		rows, err = QueryRowsToStruct[T](stmt, excludedFieldsOfModel, 10)
+	}
+
+	if len(rows) == 0 {
+		return objects, errors.New("not found")
+	}
+
+	return rows, err
+}
+
+func QueryRowsToStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, args ...any) ([]*T, error) {
 
 	object := new(T)
 
-	t := reflect.TypeOf(*object)
-	v := reflect.ValueOf(object)
+	var objects []*T
 
-	for i := 0; i < t.NumField(); i++ {
-		params = append(params, t.Field(i).Name)
-		params[i] = &params[i]
-	}
+	var rows *sql.Rows
 
-	err := stmt.QueryRow(args...).Scan(params...)
+	var err error
 
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
+	rows, err = stmt.Query(args...)
+	if rows.Err() != nil {
+		return objects, rows.Err()
 	}
 
 	if err != nil {
-		return object, err
+		return objects, err
 	}
 
-	for i := 0; i < t.NumField(); i++ {
-		var j int
-		for j, _ = range excludedFieldsOfModel {
-			if excludedFieldsOfModel[j] == t.Field(i).Name {
-				fmt.Printf("%v-%v", i, t.Field(i).Name)
-				i++
+	defer rows.Close()
+
+	var params []any
+
+	for rows.Next() {
+		params = []any{}
+		object = new(T)
+		t := reflect.TypeOf(*object)
+		v := reflect.ValueOf(object)
+
+		for i := 0; i < t.NumField(); i++ {
+			params = append(params, t.Field(i).Name)
+			params[i] = &params[i]
+		}
+
+		err := rows.Scan(params...)
+
+		if err != nil {
+			return objects, err
+		}
+
+		if v.Kind() == reflect.Ptr {
+			v = v.Elem()
+		}
+
+		for i := 0; i < t.NumField(); i++ {
+			for j := range excludedFieldsOfModel {
+				if excludedFieldsOfModel[j] == t.Field(i).Name {
+					i++
+				}
+			}
+
+			paramValue := reflect.ValueOf(params[i])
+			if paramValue.Kind() == reflect.Ptr {
+				intr := paramValue.Elem().Interface()
+				switch intr.(type) {
+				case int64:
+					v.Field(i).SetInt(intr.(int64))
+				case string:
+					v.Field(i).SetString(intr.(string))
+				}
+			} else if paramValue.Kind() == reflect.String {
+				v.Field(i).SetString(paramValue.String())
+			} else if paramValue.Kind() == reflect.Struct {
+				value, ok := paramValue.Interface().(time.Time)
+				if !ok {
+					return objects, fmt.Errorf("cannot covert to %v", paramValue.Type())
+				}
+
+				v.Field(i).SetString(value.String())
 			}
 		}
 
-		paramValue := reflect.ValueOf(params[i])
-		if paramValue.Kind() == reflect.Ptr {
-			intr := paramValue.Elem().Interface()
-			switch intr.(type) {
-			case int64:
-				v.Field(i).SetInt(intr.(int64))
-			case string:
-				v.Field(i).SetString(intr.(string))
-			}
-		} else if paramValue.Kind() == reflect.String {
-			v.Field(i).SetString(paramValue.String())
-		} else if paramValue.Kind() == reflect.Struct {
-			value, ok := paramValue.Interface().(time.Time)
-			if !ok {
-				return object, fmt.Errorf("cannot covert to %v", paramValue.Type())
-			}
-
-			v.Field(i).SetString(value.String())
-		}
+		objects = append(objects, object)
 	}
 
-	return object, nil
+	return objects, nil
 }
 
 func QueryRowWithStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, instance T) (int64, error) {
-
 	var id int64
 
 	object := new(T)
@@ -282,7 +356,7 @@ func QueryRowWithStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, i
 	var j int
 
 	for i := 0; i < typeOfModel.NumField(); i++ {
-		for j, _ = range excludedFieldsOfModel {
+		for j = range excludedFieldsOfModel {
 			if typeOfModel.Field(i).Name == excludedFieldsOfModel[j] {
 				goto down
 			}

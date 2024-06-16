@@ -4,8 +4,11 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
+	"golang.org/x/crypto/bcrypt"
 
 	"forum-backend-go/internal/models"
 	"forum-backend-go/internal/utils"
@@ -81,7 +84,7 @@ func (u *UserService) EditByID(isTest bool, id int64, user models.User) error {
 		return err
 	}
 
-	_, err = stmt.Exec(user.FirstName, user.LastName, user.Address, user.PhoneNumber, id)
+	_, err = stmt.Exec(user.Name, user.Address, user.PhoneNumber, id)
 	defer stmt.Close()
 
 	if err != nil {
@@ -92,40 +95,27 @@ func (u *UserService) EditByID(isTest bool, id int64, user models.User) error {
 }
 
 // GetAll implements Service.
-func (u *UserService) GetAll() ([]models.User, error) {
-	panic("unimplemented")
+func (u *UserService) GetAll() ([]*models.User, error) {
+	var excludedFields []string
+	excludedFields = append(excludedFields, "id")
+	users, err := GetAll[models.User](false, "users", u.db, "20", "", "", excludedFields)
+	if err != nil {
+		return users, err
+	}
+
+	return users, nil
 }
 
 // GetByID implements Service.
 func (u *UserService) GetByID(isTest bool, id int64) (models.User, error) {
-	var excluded_fields []string
-	excluded_fields = append(excluded_fields, "id")
-	user, err := Get[models.User](isTest, "users", u.db, "id", strconv.Itoa(int(id)), excluded_fields)
+	var excludedFields []string
+	excludedFields = append(excludedFields, "id")
+	user, err := Get[models.User](isTest, "users", u.db, "id", strconv.Itoa(int(id)), excludedFields)
 	if err != nil {
 		return *user, err
 	}
+
 	return *user, nil
-	// var user models.User
-
-	// var stmt *sql.Stmt
-
-	// var err error
-
-	// if isTest {
-	// 	stmt, err = u.db.Prepare(`SELECT id,email,first_name,last_name,address,phone_number,created_at from users_test where id=$1`)
-	// } else {
-	// 	stmt, err = u.db.Prepare(`SELECT id,email,first_name,last_name,address,phone_number,created_at from users where id=$1`)
-	// }
-
-	// if err != nil {
-	// 	return user, err
-	// }
-
-	// err = stmt.QueryRow(id).Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.Address, &user.PhoneNumber, &user.CreatedAt)
-
-	// defer stmt.Close()
-
-	// return user, err
 }
 
 // GetHandler implements Service.
@@ -152,7 +142,14 @@ func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
 
 // GetHandlerForPlural implements Service.
 func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Users"))
+	users, err := u.GetAll()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	utils.WriteJSON(w, users)
 }
 
 // PatchHandler implements Service.
@@ -173,8 +170,15 @@ func (u *UserService) PatchHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // PostHandler implements Service.
-func (u *UserService) PostHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserService) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	user := utils.ReadJSON[models.User](w, r)
+	encryptedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), 3)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+	user.Password = string(encryptedPassword)
 	id, err := u.Create(false, user)
 
 	if err != nil {
@@ -190,6 +194,38 @@ func (u *UserService) PostHandler(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, &data{ID: id})
 }
 
+func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	userJSON := utils.ReadJSON[models.User](w, r)
+	var excludedFields []string
+	user, err := Get[models.User](false, "users", u.db, "email", userJSON.Email, excludedFields)
+	if err != nil {
+		http.Error(w, "Login and Password does not match", 401)
+		return
+	}
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(userJSON.Password))
+	if err != nil {
+		http.Error(w, "Login and Password does not match", 401)
+		return
+	}
+	expired := time.Now().Add(time.Hour * 24)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"id": user.ID, "expired": expired.Unix()})
+	signedToken, err := token.SignedString([]byte("secret"))
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	cookie := http.Cookie{
+		Path:     "/",
+		Name:     "access",
+		Value:    signedToken,
+		Expires:  expired,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, &cookie)
+	w.Write([]byte(signedToken))
+}
+
 // registerRoutes implements Service.
 func (u *UserService) RegisterRoutes() {
 	router := u.router
@@ -198,7 +234,8 @@ func (u *UserService) RegisterRoutes() {
 	UsersRouter := APIV1Router.PathPrefix("/users/").Subrouter()
 	UsersRouter.HandleFunc("/", u.GetHandlerForPlural).Methods("GET")
 	UsersRouter.HandleFunc("/{id}", u.GetHandler).Methods("GET")
-	UsersRouter.HandleFunc("/register", u.PostHandler).Methods("POST")
+	UsersRouter.HandleFunc("/register", u.RegisterHandler).Methods("POST")
+	UsersRouter.HandleFunc("/login", u.LoginHandler).Methods("POST")
 	UsersRouter.HandleFunc("/{id}", u.PatchHandler).Methods("PATCH")
 	UsersRouter.HandleFunc("/{id}", u.DeleteHandler).Methods("DELETE")
 }
