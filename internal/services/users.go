@@ -37,36 +37,19 @@ func (u *UserService) Create(isTest bool, user models.User) (int64, error) {
 	return id, nil
 }
 
-// DeleteByID implements Service.
-func (u *UserService) DeleteByID(isTest bool, id int64) error {
-	var stmt *sql.Stmt
-
-	var err error
-
-	if isTest {
-		stmt, err = u.db.Prepare(utils.DeleteUserByIDQueryTest)
-		if err != nil {
-			return err
-		}
-	} else {
-		stmt, err = u.db.Prepare(utils.DeleteUserByIDQuery)
-		if err != nil {
-			return err
-		}
-	}
-
-	_, err = stmt.Exec(id)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // DeleteHandler implements Service.
 func (u *UserService) DeleteHandler(w http.ResponseWriter, r *http.Request) {
-	panic("unimplemented")
+	id := mux.Vars(r)["id"]
+	ID, err := strconv.Atoi(id)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	err = u.DeleteByID(false, int64(ID))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
 }
 
 // EditByID implements Service.
@@ -74,17 +57,8 @@ func (u *UserService) EditByID(isTest bool, id int64, user models.User) error {
 	return Edit(isTest, "users", u.db, "id", strconv.Itoa(int(id)), user)
 }
 
-// GetAll implements Service.
-func (u *UserService) GetAll() ([]*models.User, error) {
-	var excludedFields []string
-	excludedFields = append(excludedFields, "id")
-	users, err := GetAll[models.User](false, "users", u.db, "20", "", "", excludedFields)
-
-	if err != nil {
-		return users, err
-	}
-
-	return users, nil
+func (u *UserService) DeleteByID(isTest bool, id int64) error {
+	return Delete[models.User](isTest, "users", u.db, "id", strconv.Itoa(int(id)))
 }
 
 // GetByID implements Service.
@@ -124,7 +98,10 @@ func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
 
 // GetHandlerForPlural implements Service.
 func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, _ *http.Request) {
-	users, err := u.GetAll()
+	var excludedFields []string
+	excludedFields = append(excludedFields, "id")
+	users, err := GetAll[models.User](false, "users", u.db, "20", "", "", excludedFields)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
@@ -222,7 +199,6 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 func (u *UserService) RegisterRoutes() {
 	router := u.router
 	APIV1Router := router.PathPrefix("/api/v1/").Subrouter()
-	APIV1Router.HandleFunc("", u.GetHandlerForPlural)
 	UsersRouter := APIV1Router.PathPrefix("/users/").Subrouter()
 	UsersRouter.HandleFunc("/", u.GetHandlerForPlural).Methods("GET")
 	UsersRouter.HandleFunc("/{id}", u.GetHandler).Methods("GET")

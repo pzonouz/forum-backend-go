@@ -12,11 +12,6 @@ import (
 
 type Service[T any] interface {
 	RegisterRoutes()
-	GetAll() ([]*T, error)
-	GetByID(isTest bool, id int64) (T, error)
-	Create(isTest bool, user T) (int64, error)
-	EditByID(isTest bool, id int64, user T) error
-	DeleteByID(isTest bool, id int64) error
 }
 
 func Create[T any](isTest bool, tableName string, instance T, db *sql.DB) (int64, error) {
@@ -49,6 +44,7 @@ func Create[T any](isTest bool, tableName string, instance T, db *sql.DB) (int64
 				goto down1
 			}
 		}
+
 		switch v.Field(i).Interface().(type) {
 		case string:
 			if v.Field(i).Interface() == "" {
@@ -186,6 +182,42 @@ func Edit[T any](isTest bool, tableName string, db *sql.DB, searchField string, 
 	return err
 }
 
+func Delete[T any](isTest bool, tableName string, db *sql.DB, searchField string, searchFieldValue string) error {
+	query := `DELETE FROM `
+	query += `"`
+
+	if isTest {
+		query += tableName + `_test`
+	} else {
+		query += tableName
+	}
+	query += `" `
+	query += ` WHERE `
+	query += searchField
+	query += `= $1`
+
+	stmt, err := db.Prepare(query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	result, err := stmt.Exec(searchFieldValue)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("Nothing Deleted")
+	}
+	return err
+}
+
 func Get[T any](isTest bool, tableName string, db *sql.DB, searchField string, searchFieldValue string, excludedFieldsOfModel []string) (*T, error) {
 	query := `SELECT * `
 	query += `FROM `
@@ -256,8 +288,11 @@ func GetAll[T any](isTest bool, tableName string, db *sql.DB, limit string, sear
 		rows, err = QueryRowsToStruct[T](stmt, excludedFieldsOfModel, limit)
 	}
 
+	if err != nil {
+		return rows, err
+	}
 	if len(rows) == 0 {
-		return objects, errors.New("not found")
+		return nil, errors.New("Nothing Found")
 	}
 
 	return rows, err
@@ -380,14 +415,33 @@ func QueryRowWithStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, i
 	}
 
 	var err error
+
+	var result sql.Result
+
+	var rowsAffected int64
+
 	if returnResult {
 		err = stmt.QueryRow(params...).Scan(&id)
-	} else {
-		_, err = stmt.Exec(params...)
+		if err != nil {
+			return -1, err
+		}
+
+		return id, nil
 	}
+
+	result, err = stmt.Exec(params...)
+	if err != nil {
+		return -1, err
+	}
+
+	rowsAffected, err = result.RowsAffected()
 
 	if err != nil {
 		return -1, err
+	}
+
+	if rowsAffected == 0 {
+		return -1, errors.New("no rows affected")
 	}
 
 	return id, nil

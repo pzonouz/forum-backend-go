@@ -28,6 +28,9 @@ func (r *router) getMux() *mux.Router {
 func (r *router) registerRoutes() {
 	var userService services.Service[models.User] = services.NewUserService(r.db, r.getMux())
 
+	var RoleService services.Service[models.Role] = services.NewRoleService(r.db, r.getMux())
+
+	RoleService.RegisterRoutes()
 	userService.RegisterRoutes()
 }
 

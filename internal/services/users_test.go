@@ -67,6 +67,7 @@ func TestUserService(t *testing.T) {
 	err = userService.DeleteByID(true, id)
 	require.NoError(err)
 	database.TearDown("users")
+	database.TearDown("roles")
 
 	defer db.Close()
 }
