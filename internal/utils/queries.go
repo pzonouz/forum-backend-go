@@ -1,5 +1,17 @@
 package utils
 
+const CreateRoleTableQuery = `CREATE TABLE IF NOT EXISTS "roles" (
+  "id" bigserial PRIMARY KEY,
+  "name" varchar UNIQUE,
+  "created_at" timestamp DEFAULT (now())
+);`
+
+const CreateRoleTableQueryTest = `CREATE TABLE IF NOT EXISTS "roles_test" (
+  "id" bigserial PRIMARY KEY,
+  "name" varchar UNIQUE,
+  "created_at" timestamp DEFAULT (now())
+);`
+
 const CreateUserTableQuery = `CREATE TABLE IF NOT EXISTS "users" (
   "id" bigserial PRIMARY KEY,
   "email" varchar UNIQUE,
@@ -7,7 +19,8 @@ const CreateUserTableQuery = `CREATE TABLE IF NOT EXISTS "users" (
   "name" varchar,
   "address" text,
   "phone_number" varchar,
-  "created_at" timestamp DEFAULT (now())
+  "created_at" timestamp DEFAULT (now()),
+  "roler_id" integer REFERENCES roles(id)
 );`
 
 const CreateUserTableQueryTest = `CREATE TABLE IF NOT EXISTS "users_test" (
@@ -17,7 +30,8 @@ const CreateUserTableQueryTest = `CREATE TABLE IF NOT EXISTS "users_test" (
   "name" varchar,
   "address" text,
   "phone_number" varchar,
-  "created_at" timestamp DEFAULT (now())
+  "created_at" timestamp DEFAULT (now()),
+  "roler_id" integer REFERENCES roles_test(id)
 );`
 
 const CreateUserQuery = `INSERT INTO "users" ("email","password","name","address","phone_number") VALUES ($1,$2,$3,$4,$5,$6) RETURNING "id";`

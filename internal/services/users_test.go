@@ -21,7 +21,7 @@ func TestUserService(t *testing.T) {
 	require.NoError(err)
 
 	userService := services.NewUserService(db, mux.NewRouter())
-	want := models.User{Email: "example@example.com", Password: "dddddd", Name: "fname", Address: "Addffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", PhoneNumber: "09148998933"}
+	want := models.User{Email: "example@example.com", Password: "dddddd", Address: "Addffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", PhoneNumber: "09148998933"}
 	id, err := userService.Create(true, want)
 	require.NoError(err)
 	assert.NotZero(id)

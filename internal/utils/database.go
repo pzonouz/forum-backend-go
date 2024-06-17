@@ -45,7 +45,13 @@ func NewDatabase() *database {
 
 func (d *database) GetDB(isTest bool) (*sql.DB, error) {
 	if isTest {
-		err := d.RunQueryOnDB(CreateUserTableQueryTest)
+		err := d.RunQueryOnDB(CreateRoleTableQueryTest)
+		if err != nil {
+			return nil, err
+		}
+
+		err = d.RunQueryOnDB(CreateUserTableQueryTest)
+
 		if err != nil {
 			return nil, err
 		}
@@ -53,7 +59,13 @@ func (d *database) GetDB(isTest bool) (*sql.DB, error) {
 		return d.db, nil
 	}
 
-	err := d.RunQueryOnDB(CreateUserTableQuery)
+	err := d.RunQueryOnDB(CreateRoleTableQuery)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = d.RunQueryOnDB(CreateUserTableQuery)
 
 	if err != nil {
 		return nil, err
@@ -63,5 +75,8 @@ func (d *database) GetDB(isTest bool) (*sql.DB, error) {
 }
 
 func (d *database) TearDown(tableName string) {
-	_ = d.RunQueryOnDB(fmt.Sprintf(DeleteTestTableQuery, tableName))
+	err := d.RunQueryOnDB(fmt.Sprintf(DeleteTestTableQuery, tableName))
+	if err != nil {
+		log.Print(err.Error())
+	}
 }

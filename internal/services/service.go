@@ -43,13 +43,19 @@ func Create[T any](isTest bool, tableName string, instance T, db *sql.DB) (int64
 
 		var j int
 
-		// skip Emty Fields Type add to query
-		if v.Field(i).Interface() == "" {
-			goto down1
-		}
-		// skip Ecluded Fields Type add to query
+		// skip Excluded Fields Type add to query
 		for j = range excludedFieldsOfModel {
 			if t.Field(i).Name == excludedFieldsOfModel[j] {
+				goto down1
+			}
+		}
+		switch v.Field(i).Interface().(type) {
+		case string:
+			if v.Field(i).Interface() == "" {
+				goto down1
+			}
+		case int64:
+			if v.Field(i).Interface() == int64(0) {
 				goto down1
 			}
 		}
@@ -79,9 +85,16 @@ func Create[T any](isTest bool, tableName string, instance T, db *sql.DB) (int64
 
 		// query += strconv.Itoa(i)
 
-		//skip Emty Filds to increate query paramrs number
-		if v.Field(i).Interface() == "" {
-			goto down
+		//skip Emty Fields to increate query paramrs number
+		switch v.Field(i).Interface().(type) {
+		case string:
+			if v.Field(i).Interface() == "" {
+				goto down
+			}
+		case int64:
+			if v.Field(i).Interface() == int64(0) {
+				goto down
+			}
 		}
 
 		query += `$`
@@ -134,8 +147,15 @@ func Edit[T any](isTest bool, tableName string, db *sql.DB, searchField string, 
 			}
 		}
 
-		if v.Field(i).Interface() == "" {
-			goto down1
+		switch v.Field(i).Interface().(type) {
+		case string:
+			if v.Field(i).Interface() == "" {
+				goto down1
+			}
+		case int64:
+			if v.Field(i).Interface() == int64(0) {
+				goto down1
+			}
 		}
 
 		externalI++
@@ -340,8 +360,15 @@ func QueryRowWithStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, i
 			}
 		}
 
-		if valueOfModel.Field(i).Interface() == "" {
-			goto down
+		switch valueOfModel.Field(i).Interface().(type) {
+		case string:
+			if valueOfModel.Field(i).Interface() == "" {
+				goto down
+			}
+		case int64:
+			if valueOfModel.Field(i).Interface() == int64(0) {
+				goto down
+			}
 		}
 
 		params = append(params, valueOfModel.Field(i).Interface())
