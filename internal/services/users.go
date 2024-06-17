@@ -71,7 +71,7 @@ func (u *UserService) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 
 // EditByID implements Service.
 func (u *UserService) EditByID(isTest bool, id int64, user models.User) error {
-	return EditByID(isTest, "users", u.db, id, user)
+	return Edit(isTest, "users", u.db, "id", strconv.Itoa(int(id)), user)
 }
 
 // GetAll implements Service.

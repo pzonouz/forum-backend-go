@@ -101,10 +101,10 @@ func Create[T any](isTest bool, tableName string, instance T, db *sql.DB) (int64
 
 	defer stmt.Close()
 
-	return QueryRowWithStruct(stmt, excludedFieldsOfModel, instance, 0, true)
+	return QueryRowWithStruct(stmt, excludedFieldsOfModel, instance, "", true)
 }
 
-func EditByID[T any](isTest bool, tableName string, db *sql.DB, id int64, instance T) error {
+func Edit[T any](isTest bool, tableName string, db *sql.DB, searchField string, searchFieldValue string, instance T) error {
 	var excludedFieldsOfModel []string
 	excludedFieldsOfModel = append(excludedFieldsOfModel, "Email", "Password", "CreatedAt", "ID")
 
@@ -148,8 +148,8 @@ func EditByID[T any](isTest bool, tableName string, db *sql.DB, id int64, instan
 	}
 
 	query = query[:len(query)-1]
-	query += ` WHERE`
-	query += ` id `
+	query += ` WHERE `
+	query += searchField
 	query += `= $`
 	query += strconv.Itoa(externalI + 1)
 
@@ -161,7 +161,7 @@ func EditByID[T any](isTest bool, tableName string, db *sql.DB, id int64, instan
 
 	defer stmt.Close()
 
-	_, err = QueryRowWithStruct(stmt, excludedFieldsOfModel, instance, id, false)
+	_, err = QueryRowWithStruct(stmt, excludedFieldsOfModel, instance, searchFieldValue, false)
 
 	return err
 }
@@ -321,7 +321,7 @@ func QueryRowsToStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, ar
 	return objects, nil
 }
 
-func QueryRowWithStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, instance T, whereClause int64, returnResult bool) (int64, error) {
+func QueryRowWithStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, instance T, whereClause string, returnResult bool) (int64, error) {
 	var id int64
 
 	object := new(T)
@@ -348,7 +348,7 @@ func QueryRowWithStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, i
 	down:
 	}
 
-	if whereClause != 0 {
+	if len(whereClause) != 0 {
 		params = append(params, whereClause)
 	}
 
