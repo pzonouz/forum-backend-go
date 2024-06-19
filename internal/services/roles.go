@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 
@@ -37,44 +38,104 @@ func (r *Role) GetHandlerForPlural(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (r *Role) GetHandler(w http.ResponseWriter, req *http.Request) {
-	panic("unimplemented")
+	params := mux.Vars(req)
+	id, err := strconv.Atoi(params["id"])
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	role, err := r.GetByID(false, int64(id))
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	utils.WriteJSON(w, role)
 }
 
 func (r *Role) PostHandler(w http.ResponseWriter, req *http.Request) {
-	panic("unimplemented")
+	role := utils.ReadJSON[models.Role](w, req)
+	id, err := r.Create(false, role)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	type data struct {
+		ID int64 `json:"id"`
+	}
+
+	utils.WriteJSON(w, &data{ID: id})
 }
 
 func (r *Role) PatchHandler(w http.ResponseWriter, req *http.Request) {
-	panic("unimplemented")
+	id := mux.Vars(req)["id"]
+	role := utils.ReadJSON[models.Role](w, req)
+	ID, err := strconv.Atoi(id)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	err = r.EditByID(false, int64(ID), role)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
 }
 
 func (r *Role) DeleteHandler(w http.ResponseWriter, req *http.Request) {
-	panic("unimplemented")
+	id := mux.Vars(req)["id"]
+	ID, err := strconv.Atoi(id)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	err = r.DeleteByID(false, int64(ID))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
 }
 
 // Create implements Service.
 func (r *Role) Create(isTest bool, role models.Role) (int64, error) {
-	panic("unimplemented")
+	var id int64
+	id, err := Create[models.Role](isTest, "roles", role, r.db)
+
+	if err != nil {
+		return -1, err
+	}
+
+	return id, nil
 }
 
 // DeleteByID implements Service.
 func (r *Role) DeleteByID(isTest bool, id int64) error {
-	panic("unimplemented")
+	return Delete[models.Role](isTest, "roles", r.db, "id", strconv.Itoa(int(id)))
 }
 
 // EditByID implements Service.
 func (r *Role) EditByID(isTest bool, id int64, role models.Role) error {
-	panic("unimplemented")
-}
-
-// GetAll implements Service.
-func (r *Role) GetAll() ([]*models.Role, error) {
-	panic("unimplemented")
+	return Edit(isTest, "roles", r.db, "id", strconv.Itoa(int(id)), role)
 }
 
 // GetByID implements Service.
 func (r *Role) GetByID(isTest bool, id int64) (models.Role, error) {
-	panic("unimplemented")
+	var excludedFields []string
+	excludedFields = append(excludedFields, "id")
+	role, err := Get[models.Role](isTest, "roles", r.db, "id", strconv.Itoa(int(id)), excludedFields)
+
+	if err != nil {
+		return *role, err
+	}
+
+	return *role, nil
 }
 
 // RegisterRoutes implements Service.

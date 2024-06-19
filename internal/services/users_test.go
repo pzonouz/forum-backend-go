@@ -13,7 +13,7 @@ import (
 )
 
 func TestUserService(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 	database := utils.NewDatabase()
