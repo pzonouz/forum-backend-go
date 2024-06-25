@@ -7,6 +7,6 @@ type User struct {
 	Name        string `json:"name" sql:"name"`
 	Address     string `json:"address" sql:"address"`
 	PhoneNumber string `json:"phoneNumber" sql:"phone_number"`
+	Role        string `json:"role" sql:"role"`
 	CreatedAt   string `json:"createdAt" sql:"created_at"`
-	RolerID     int64  `json:"rolerId" sql:"roler_id"`
 }

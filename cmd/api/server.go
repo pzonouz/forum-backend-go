@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"forum-backend-go/internal/middlewares"
 	"forum-backend-go/internal/utils"
 )
 
@@ -15,6 +16,8 @@ type server struct {
 }
 
 func newServer(router *mux.Router) *server {
+	router.Use(middlewares.Logging)
+
 	return &server{
 		router: router,
 	}

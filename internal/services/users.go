@@ -2,6 +2,7 @@ package services
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 
+	"forum-backend-go/internal/middlewares"
 	"forum-backend-go/internal/models"
 	"forum-backend-go/internal/utils"
 )
@@ -76,8 +78,12 @@ func (u *UserService) GetByID(isTest bool, id int64) (models.User, error) {
 
 // GetHandler implements Service.
 func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	id, err := strconv.Atoi(params["id"])
+	// params := mux.Vars(r)
+	idFromHeader := r.Header.Get("User-Id")
+	log.Print(idFromHeader)
+	// log.Print(r)
+	// id, err := strconv.Atoi(params["id"])
+	id, err := strconv.Atoi(idFromHeader)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -100,7 +106,7 @@ func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
 func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, _ *http.Request) {
 	var excludedFields []string
 	excludedFields = append(excludedFields, "id")
-	users, err := GetAll[models.User](false, "users", u.db, "20", "", "", excludedFields)
+	users, err := GetMany[models.User](false, "users", u.db, "20", nil, nil, "", "", excludedFields)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -174,7 +180,7 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expired := time.Now().Add(time.Hour * 24)
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"id": user.ID, "expired": expired.Unix()})
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, utils.MyClaims{ID: user.ID, Expired: expired.Unix()})
 	signedToken, err := token.SignedString([]byte("secret"))
 
 	if err != nil {
@@ -189,7 +195,8 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		Value:    signedToken,
 		Expires:  expired,
 		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
+		// SameSite: http.SameSiteLaxMode,
+		// Domain:   "",
 	}
 	http.SetCookie(w, &cookie)
 	_, _ = w.Write([]byte(signedToken))
@@ -200,8 +207,8 @@ func (u *UserService) RegisterRoutes() {
 	router := u.router
 	APIV1Router := router.PathPrefix("/api/v1/").Subrouter()
 	UsersRouter := APIV1Router.PathPrefix("/users/").Subrouter()
-	UsersRouter.HandleFunc("/", u.GetHandlerForPlural).Methods("GET")
-	UsersRouter.HandleFunc("/{id}", u.GetHandler).Methods("GET")
+	UsersRouter.HandleFunc("/get_all", u.GetHandlerForPlural).Methods("GET")
+	UsersRouter.HandleFunc("/", middlewares.LoginGuard(u.GetHandler)).Methods("GET")
 	UsersRouter.HandleFunc("/register", u.RegisterHandler).Methods("POST")
 	UsersRouter.HandleFunc("/login", u.LoginHandler).Methods("POST")
 	UsersRouter.HandleFunc("/{id}", u.PatchHandler).Methods("PATCH")

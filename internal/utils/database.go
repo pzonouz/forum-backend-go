@@ -45,7 +45,7 @@ func NewDatabase() *database {
 
 func (d *database) GetDB(isTest bool) (*sql.DB, error) {
 	if isTest {
-		err := d.RunQueryOnDB(CreateRoleTableQueryTest)
+		err := d.RunQueryOnDB(CreateQuestionTableQueryTest)
 		if err != nil {
 			return nil, err
 		}
@@ -59,7 +59,7 @@ func (d *database) GetDB(isTest bool) (*sql.DB, error) {
 		return d.db, nil
 	}
 
-	err := d.RunQueryOnDB(CreateRoleTableQuery)
+	err := d.RunQueryOnDB(CreateQuestionTableQuery)
 
 	if err != nil {
 		return nil, err

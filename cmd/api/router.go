@@ -26,12 +26,13 @@ func (r *router) getMux() *mux.Router {
 
 // registerRoutes implements Router.
 func (r *router) registerRoutes() {
+
 	var userService services.Service[models.User] = services.NewUserService(r.db, r.getMux())
 
-	var RoleService services.Service[models.Role] = services.NewRoleService(r.db, r.getMux())
+	var questionService services.Service[models.Question] = services.NewQuestionService(r.db, r.getMux())
 
-	RoleService.RegisterRoutes()
 	userService.RegisterRoutes()
+	questionService.RegisterRoutes()
 }
 
 func newRouter(db *sql.DB) *router {

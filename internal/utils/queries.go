@@ -1,37 +1,43 @@
 package utils
 
-const CreateRoleTableQuery = `CREATE TABLE IF NOT EXISTS "roles" (
+const CreateQuestionTableQuery = `CREATE TABLE IF NOT EXISTS "questions" (
   "id" bigserial PRIMARY KEY,
-  "name" varchar UNIQUE,
+  "title" varchar UNIQUE,
+  "description" text,
   "created_at" timestamp DEFAULT (now())
 );`
 
-const CreateRoleTableQueryTest = `CREATE TABLE IF NOT EXISTS "roles_test" (
+const CreateQuestionTableQueryTest = `CREATE TABLE IF NOT EXISTS "questions_test" (
   "id" bigserial PRIMARY KEY,
-  "name" varchar UNIQUE,
+  "title" varchar UNIQUE,
+  "description" text,
   "created_at" timestamp DEFAULT (now())
 );`
 
-const CreateUserTableQuery = `CREATE TABLE IF NOT EXISTS "users" (
+const CreateUserTableQuery = `
+  -- CREATE TYPE IF NOT EXISTS roleType as ENUM('admin','user','owner','modifier');
+  CREATE TABLE IF NOT EXISTS users (
+  id bigserial PRIMARY KEY,
+  email varchar UNIQUE NOT NULL,
+  password varchar NOT NULL,
+  name varchar,
+  address text,
+  phone_number varchar, 
+  role roleType NOT NULL DEFAULT 'user',
+  created_at timestamp DEFAULT (now())
+);`
+
+const CreateUserTableQueryTest = `
+  -- CREATE TYPE roleType as ENUM('admin','user','owner','modifier');
+  CREATE TABLE IF NOT EXISTS "users_test" (
   "id" bigserial PRIMARY KEY,
   "email" varchar UNIQUE,
   "password" varchar,
   "name" varchar,
   "address" text,
   "phone_number" varchar,
-  "created_at" timestamp DEFAULT (now()),
-  "roler_id" integer REFERENCES roles(id)
-);`
-
-const CreateUserTableQueryTest = `CREATE TABLE IF NOT EXISTS "users_test" (
-  "id" bigserial PRIMARY KEY,
-  "email" varchar UNIQUE,
-  "password" varchar,
-  "name" varchar,
-  "address" text,
-  "phone_number" varchar,
-  "created_at" timestamp DEFAULT (now()),
-  "roler_id" integer REFERENCES roles_test(id)
+  role roleType NOT NULL DEFAULT 'user',
+  "created_at" timestamp DEFAULT (now())
 );`
 
 // const CreateUserQuery = `INSERT INTO "users" ("email","password","name","address","phone_number") VALUES ($1,$2,$3,$4,$5,$6) RETURNING "id";`

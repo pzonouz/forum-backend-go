@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -249,9 +250,9 @@ func Get[T any](isTest bool, tableName string, db *sql.DB, searchField string, s
 	return rows[0], err
 }
 
-func GetAll[T any](isTest bool, tableName string, db *sql.DB, limit string, searchField string, searchFieldValue string, excludedFieldsOfModel []string) ([]*T, error) {
+func GetMany[T any](isTest bool, tableName string, db *sql.DB, limit string, sortBy any, sortDirection any, searchField string, searchFieldValue string, excludedFieldsOfModel []string) ([]*T, error) {
 	var objects []*T
-
+	objects = make([]*T, 0)
 	query := `SELECT * `
 	query += `FROM `
 
@@ -261,8 +262,20 @@ func GetAll[T any](isTest bool, tableName string, db *sql.DB, limit string, sear
 		query += tableName
 	}
 
+	if sortDirection == nil || sortDirection == "" {
+		sortDirection = "ASC"
+	}
+
+	if sortBy == nil || sortBy == "" {
+		sortBy = "created_at"
+	}
+
+	query += ` ORDER BY`
+	query += fmt.Sprintf(" %v", sortBy)
+	query += fmt.Sprintf(" %v", sortDirection)
+
 	if len(searchField) == 0 {
-		query += ` LIMIT `
+		query += ` LIMIT`
 		query += ` $1`
 	} else {
 		query += ` LIMIT `
@@ -271,7 +284,6 @@ func GetAll[T any](isTest bool, tableName string, db *sql.DB, limit string, sear
 		query += searchField
 		query += ` $2`
 	}
-
 	stmt, err := db.Prepare(query)
 
 	if err != nil {
@@ -282,6 +294,11 @@ func GetAll[T any](isTest bool, tableName string, db *sql.DB, limit string, sear
 
 	var rows []*T
 
+	log.Printf("%v", limit)
+	if limit == "" {
+		limit = "100"
+	}
+
 	if len(searchField) != 0 {
 		rows, err = QueryRowsToStruct[T](stmt, excludedFieldsOfModel, searchFieldValue, limit)
 	} else {
@@ -291,15 +308,15 @@ func GetAll[T any](isTest bool, tableName string, db *sql.DB, limit string, sear
 	if err != nil {
 		return rows, err
 	}
+
 	if len(rows) == 0 {
-		return nil, errors.New("Nothing Found")
+		return objects, nil
 	}
 
 	return rows, err
 }
 
 func QueryRowsToStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, args ...any) ([]*T, error) {
-
 	object := new(T)
 
 	var objects []*T
@@ -309,6 +326,7 @@ func QueryRowsToStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, ar
 	var err error
 
 	rows, err = stmt.Query(args...)
+
 	if rows.Err() != nil {
 		return objects, rows.Err()
 	}
