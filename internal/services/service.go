@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+
+	"forum-backend-go/internal/utils"
 )
 
 type Service[T any] interface {
@@ -16,7 +18,7 @@ type Service[T any] interface {
 
 func Create[T any](isTest bool, tableName string, instance T, db *sql.DB) (int64, error) {
 	var excludedFieldsOfModel []string
-	excludedFieldsOfModel = append(excludedFieldsOfModel, "CreatedAt", "ID")
+	// excludedFieldsOfModel = append(excludedFieldsOfModel, "CreatedAt", "ID")
 
 	t := reflect.TypeOf(instance)
 	v := reflect.ValueOf(instance)
@@ -183,19 +185,7 @@ func Edit[T any](isTest bool, tableName string, db *sql.DB, searchField string, 
 }
 
 func Delete[T any](isTest bool, tableName string, db *sql.DB, searchField string, searchFieldValue string) error {
-	query := `DELETE FROM `
-	query += `"`
-
-	if isTest {
-		query += tableName + `_test`
-	} else {
-		query += tableName
-	}
-	query += `" `
-	query += ` WHERE `
-	query += searchField
-	query += `= $1`
-
+	query := utils.DeleteQueryCreator(isTest, tableName, searchField)
 	stmt, err := db.Prepare(query)
 
 	if err != nil {
@@ -208,31 +198,22 @@ func Delete[T any](isTest bool, tableName string, db *sql.DB, searchField string
 	if err != nil {
 		return err
 	}
+
 	rowsAffected, err := result.RowsAffected()
+
 	if err != nil {
 		return err
 	}
+
 	if rowsAffected == 0 {
-		return errors.New("Nothing Deleted")
+		return errors.New("nothing deleted")
 	}
+
 	return err
 }
 
 func Get[T any](isTest bool, tableName string, db *sql.DB, searchField string, searchFieldValue string, excludedFieldsOfModel []string) (*T, error) {
-	query := `SELECT * `
-	query += `FROM `
-	query += `"`
-
-	if isTest {
-		query += tableName + `_test`
-	} else {
-		query += tableName
-	}
-
-	query += `" WHERE `
-	query += searchField
-	query += `= $1`
-
+	query := utils.GetQueryCreator(isTest, tableName, searchField)
 	stmt, err := db.Prepare(query)
 
 	if err != nil {
@@ -251,45 +232,8 @@ func Get[T any](isTest bool, tableName string, db *sql.DB, searchField string, s
 
 func GetMany[T any](isTest bool, tableName string, db *sql.DB, limit string, sortBy string, sortDirection string, searchField string, searchFieldValue string, operator string, excludedFieldsOfModel []string) ([]*T, error) {
 	objects := make([]*T, 0)
-	query := `SELECT * `
-	query += `FROM `
 
-	if isTest {
-		query += tableName + `_test`
-	} else {
-		query += tableName
-	}
-
-	if sortBy == "" {
-		sortBy = "created_at"
-	}
-
-	if operator == "" {
-		operator = "="
-	}
-
-	if len(searchField) == 0 {
-		query += ` ORDER BY `
-		query += sortBy
-		query += ` `
-		query += sortDirection
-		query += ` LIMIT`
-		query += ` $1`
-	} else {
-		query += ` WHERE `
-		query += searchField
-		query += ` `
-		query += operator
-		query += ` $1`
-		query += ` ORDER BY `
-		query += sortBy
-		query += ` `
-		query += sortDirection
-
-		query += ` LIMIT `
-		query += ` $2`
-	}
-
+	query := utils.GetManyQueryCreator(isTest, tableName, sortBy, operator, searchField, sortDirection)
 	stmt, err := db.Prepare(query)
 
 	if err != nil {

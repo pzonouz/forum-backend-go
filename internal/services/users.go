@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -103,10 +104,35 @@ func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetHandlerForPlural implements Service.
-func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, _ *http.Request) {
+func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, r *http.Request) {
 	var excludedFields []string
+
+	requestQuery := r.URL.Query()
+	sortBy := requestQuery.Get("sort_by")
+	sortDirection := requestQuery.Get("sort_direction")
+	searchField := requestQuery.Get("search_field")
+	searchFieldValue := requestQuery.Get("search_field_value")
+	operator := requestQuery.Get("operator")
+	limit := requestQuery.Get("limit")
+
+	if _, err := strconv.Atoi(limit); err != nil && len(limit) != 0 {
+		http.Error(w, "Limit is not number", http.StatusBadRequest)
+
+		return
+	}
+
+	if len(sortDirection) != 0 && strings.Compare(sortDirection, "ASC") != 0 && strings.Compare(sortDirection, "DESC") != 0 {
+		http.Error(w, "Sort direction in not ASC or DESC", http.StatusBadRequest)
+
+		return
+	}
+
+	if len(sortDirection) == 0 {
+		sortDirection = "ASC"
+	}
+
 	excludedFields = append(excludedFields, "id")
-	users, err := GetMany[models.User](false, "users", u.db, "20", "", "", "", "", "", excludedFields)
+	users, err := GetMany[models.User](false, "users", u.db, limit, sortBy, sortDirection, searchField, searchFieldValue, operator, excludedFields)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -207,7 +233,7 @@ func (u *UserService) RegisterRoutes() {
 	router := u.router
 	APIV1Router := router.PathPrefix("/api/v1/").Subrouter()
 	UsersRouter := APIV1Router.PathPrefix("/users/").Subrouter()
-	UsersRouter.HandleFunc("/get_all", u.GetHandlerForPlural).Methods("GET")
+	UsersRouter.HandleFunc("/get_all/", u.GetHandlerForPlural).Methods("GET")
 	UsersRouter.HandleFunc("/", middlewares.LoginGuard(u.GetHandler)).Methods("GET")
 	UsersRouter.HandleFunc("/register", u.RegisterHandler).Methods("POST")
 	UsersRouter.HandleFunc("/login", u.LoginHandler).Methods("POST")

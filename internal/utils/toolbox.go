@@ -41,3 +41,80 @@ type MyClaims struct {
 	Expired     int64
 	jwt.RegisteredClaims
 }
+
+func GetManyQueryCreator(isTest bool, tableName string, sortBy string, operator string, searchField string, sortDirection string) string {
+	query := `SELECT * `
+	query += `FROM `
+
+	if isTest {
+		query += tableName + `_test`
+	} else {
+		query += tableName
+	}
+
+	if sortBy == "" {
+		sortBy = "created_at"
+	}
+
+	if operator == "" {
+		operator = "="
+	}
+
+	if len(searchField) == 0 {
+		query += ` ORDER BY `
+		query += sortBy
+		query += ` `
+		query += sortDirection
+		query += ` LIMIT`
+		query += ` $1`
+	} else {
+		query += ` WHERE `
+		query += searchField
+		query += ` `
+		query += operator
+		query += ` $1`
+		query += ` ORDER BY `
+		query += sortBy
+		query += ` `
+		query += sortDirection
+
+		query += ` LIMIT `
+		query += ` $2`
+	}
+
+	return query
+}
+
+func GetQueryCreator(isTest bool, tableName string, searchField string) string {
+	query := `SELECT * `
+	query += `FROM `
+	query += `"`
+
+	if isTest {
+		query += tableName + `_test`
+	} else {
+		query += tableName
+	}
+
+	query += `" WHERE `
+	query += searchField
+	query += `= $1`
+	return query
+}
+
+func DeleteQueryCreator(isTest bool, tableName string, searchField string) string {
+	query := `DELETE FROM `
+	query += `"`
+
+	if isTest {
+		query += tableName + `_test`
+	} else {
+		query += tableName
+	}
+
+	query += `" `
+	query += ` WHERE `
+	query += searchField
+	query += `= $1`
+	return query
+}
