@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -18,7 +19,7 @@ type Service[T any] interface {
 
 func Create[T any](isTest bool, tableName string, instance T, db *sql.DB) (int64, error) {
 	var excludedFieldsOfModel []string
-	// excludedFieldsOfModel = append(excludedFieldsOfModel, "CreatedAt", "ID")
+	excludedFieldsOfModel = append(excludedFieldsOfModel, "CreatedAt", "ID")
 
 	t := reflect.TypeOf(instance)
 	v := reflect.ValueOf(instance)
@@ -223,6 +224,7 @@ func Get[T any](isTest bool, tableName string, db *sql.DB, searchField string, s
 	defer stmt.Close()
 
 	rows, err := QueryRowsToStruct[T](stmt, excludedFieldsOfModel, searchFieldValue)
+
 	if len(rows) == 0 {
 		return new(T), errors.New("not found")
 	}
@@ -317,6 +319,7 @@ func QueryRowsToStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, ar
 			}
 
 			paramValue := reflect.ValueOf(params[i])
+			log.Printf("%T,%v", paramValue, paramValue)
 			if paramValue.Kind() == reflect.Ptr {
 				intr := paramValue.Elem().Interface()
 				switch intr.(type) {
@@ -327,6 +330,8 @@ func QueryRowsToStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, ar
 				}
 			} else if paramValue.Kind() == reflect.String {
 				v.Field(i).SetString(paramValue.String())
+			} else if paramValue.Kind() == reflect.Int64 {
+				v.Field(i).SetInt(paramValue.Int())
 			} else if paramValue.Kind() == reflect.Struct {
 				value, ok := paramValue.Interface().(time.Time)
 				if !ok {

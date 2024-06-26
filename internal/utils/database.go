@@ -45,12 +45,13 @@ func NewDatabase() *database {
 
 func (d *database) GetDB(isTest bool) (*sql.DB, error) {
 	if isTest {
-		err := d.RunQueryOnDB(CreateQuestionTableQueryTest)
+		err := d.RunQueryOnDB(CreateUserTableQueryTest)
+
 		if err != nil {
 			return nil, err
 		}
 
-		err = d.RunQueryOnDB(CreateUserTableQueryTest)
+		err = d.RunQueryOnDB(CreateQuestionTableQueryTest)
 
 		if err != nil {
 			return nil, err
@@ -59,13 +60,13 @@ func (d *database) GetDB(isTest bool) (*sql.DB, error) {
 		return d.db, nil
 	}
 
-	err := d.RunQueryOnDB(CreateQuestionTableQuery)
+	err := d.RunQueryOnDB(CreateUserTableQuery)
 
 	if err != nil {
 		return nil, err
 	}
 
-	err = d.RunQueryOnDB(CreateUserTableQuery)
+	err = d.RunQueryOnDB(CreateQuestionTableQuery)
 
 	if err != nil {
 		return nil, err

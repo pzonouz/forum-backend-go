@@ -1,19 +1,5 @@
 package utils
 
-const CreateQuestionTableQuery = `CREATE TABLE IF NOT EXISTS "questions" (
-  "id" bigserial PRIMARY KEY,
-  "title" varchar UNIQUE,
-  "description" text,
-  "created_at" timestamp DEFAULT (now())
-);`
-
-const CreateQuestionTableQueryTest = `CREATE TABLE IF NOT EXISTS "questions_test" (
-  "id" bigserial PRIMARY KEY,
-  "title" varchar UNIQUE,
-  "description" text,
-  "created_at" timestamp DEFAULT (now())
-);`
-
 const CreateUserTableQuery = `
   -- CREATE TYPE IF NOT EXISTS roleType as ENUM('admin','user','owner','modifier');
   CREATE TABLE IF NOT EXISTS users (
@@ -38,6 +24,22 @@ const CreateUserTableQueryTest = `
   "phone_number" varchar,
   role roleType NOT NULL DEFAULT 'user',
   "created_at" timestamp DEFAULT (now())
+);`
+
+const CreateQuestionTableQuery = `CREATE TABLE IF NOT EXISTS "questions" (
+  "id" bigserial PRIMARY KEY,
+  "title" varchar UNIQUE,
+  "description" text,
+  "created_at" timestamp DEFAULT (now()),
+  "user_id" bigint REFERENCES users(id)
+);`
+
+const CreateQuestionTableQueryTest = `CREATE TABLE IF NOT EXISTS "questions_test" (
+  "id" bigserial PRIMARY KEY,
+  "title" varchar UNIQUE,
+  "description" text,
+  "created_at" timestamp DEFAULT (now()),
+  "user_id" bigint REFERENCES users(id)
 );`
 
 // const CreateUserQuery = `INSERT INTO "users" ("email","password","name","address","phone_number") VALUES ($1,$2,$3,$4,$5,$6) RETURNING "id";`

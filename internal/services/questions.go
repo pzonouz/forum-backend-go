@@ -179,7 +179,7 @@ func (r *Question) EditByID(isTest bool, id int64, question models.Question) err
 // GetByID implements Service.
 func (r *Question) GetByID(isTest bool, id int64) (models.Question, error) {
 	var excludedFields []string
-	excludedFields = append(excludedFields, "id")
+	// excludedFields = append(excludedFields, "id")
 	question, err := Get[models.Question](isTest, "questions", r.db, "id", strconv.Itoa(int(id)), excludedFields)
 
 	if err != nil {

@@ -2,7 +2,6 @@ package services
 
 import (
 	"database/sql"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -67,7 +66,7 @@ func (u *UserService) DeleteByID(isTest bool, id int64) error {
 // GetByID implements Service.
 func (u *UserService) GetByID(isTest bool, id int64) (models.User, error) {
 	var excludedFields []string
-	excludedFields = append(excludedFields, "id")
+	excludedFields = append(excludedFields, "Password")
 	user, err := Get[models.User](isTest, "users", u.db, "id", strconv.Itoa(int(id)), excludedFields)
 
 	if err != nil {
@@ -79,25 +78,17 @@ func (u *UserService) GetByID(isTest bool, id int64) (models.User, error) {
 
 // GetHandler implements Service.
 func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
-	// params := mux.Vars(r)
-	idFromHeader := r.Header.Get("User-Id")
-	log.Print(idFromHeader)
-	// log.Print(r)
-	// id, err := strconv.Atoi(params["id"])
-	id, err := strconv.Atoi(idFromHeader)
+	access, _ := r.Cookie("access")
+
+	token, _ := jwt.ParseWithClaims(access.Value, &utils.MyClaims{}, func(_ *jwt.Token) (interface{}, error) {
+		return []byte("secret"), nil
+	})
+
+	claims := token.Claims.(*utils.MyClaims)
+	user, err := u.GetByID(false, claims.ID)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-
-		return
-	}
-
-	user, err := u.GetByID(false, int64(id))
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-
-		return
 	}
 
 	utils.WriteJSON(w, user)
@@ -131,7 +122,7 @@ func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, r *http.Request
 		sortDirection = "ASC"
 	}
 
-	excludedFields = append(excludedFields, "id")
+	excludedFields = append(excludedFields, "Password", "Role")
 	users, err := GetMany[models.User](false, "users", u.db, limit, sortBy, sortDirection, searchField, searchFieldValue, operator, excludedFields)
 
 	if err != nil {
