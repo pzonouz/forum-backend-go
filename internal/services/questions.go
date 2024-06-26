@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -27,17 +28,31 @@ func (r *Question) GetHandlerForPlural(w http.ResponseWriter, req *http.Request)
 	var excludedFields []string
 
 	requestQuery := req.URL.Query()
-	sort_by := requestQuery.Get("sort_by")
+	sortBy := requestQuery.Get("sort_by")
+	sortDirection := requestQuery.Get("sort_direction")
+	searchField := requestQuery.Get("search_field")
+	searchFieldValue := requestQuery.Get("search_field_value")
+	operator := requestQuery.Get("operator")
 	limit := requestQuery.Get("limit")
 
-	if _, err := strconv.Atoi(limit); err != nil {
+	if _, err := strconv.Atoi(limit); err != nil && len(limit) != 0 {
 		http.Error(w, "Limit is not number", http.StatusBadRequest)
 
 		return
 	}
 
+	if len(sortDirection) != 0 && strings.Compare(sortDirection, "ASC") != 0 && strings.Compare(sortDirection, "DESC") != 0 {
+		http.Error(w, "Sort direction in not ASC or DESC", http.StatusBadRequest)
+
+		return
+	}
+
+	if len(sortDirection) == 0 {
+		sortDirection = "ASC"
+	}
+
 	excludedFields = append(excludedFields, "id")
-	questions, err := GetMany[models.Question](false, "questions", r.db, limit, sort_by, "", "", "", excludedFields)
+	questions, err := GetMany[models.Question](false, "questions", r.db, limit, sortBy, sortDirection, searchField, searchFieldValue, operator, excludedFields)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

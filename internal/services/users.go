@@ -106,7 +106,7 @@ func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
 func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, _ *http.Request) {
 	var excludedFields []string
 	excludedFields = append(excludedFields, "id")
-	users, err := GetMany[models.User](false, "users", u.db, "20", nil, nil, "", "", excludedFields)
+	users, err := GetMany[models.User](false, "users", u.db, "20", "", "", "", "", "", excludedFields)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

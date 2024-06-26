@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -250,9 +249,8 @@ func Get[T any](isTest bool, tableName string, db *sql.DB, searchField string, s
 	return rows[0], err
 }
 
-func GetMany[T any](isTest bool, tableName string, db *sql.DB, limit string, sortBy any, sortDirection any, searchField string, searchFieldValue string, excludedFieldsOfModel []string) ([]*T, error) {
-	var objects []*T
-	objects = make([]*T, 0)
+func GetMany[T any](isTest bool, tableName string, db *sql.DB, limit string, sortBy string, sortDirection string, searchField string, searchFieldValue string, operator string, excludedFieldsOfModel []string) ([]*T, error) {
+	objects := make([]*T, 0)
 	query := `SELECT * `
 	query += `FROM `
 
@@ -262,28 +260,36 @@ func GetMany[T any](isTest bool, tableName string, db *sql.DB, limit string, sor
 		query += tableName
 	}
 
-	if sortDirection == nil || sortDirection == "" {
-		sortDirection = "ASC"
-	}
-
-	if sortBy == nil || sortBy == "" {
+	if sortBy == "" {
 		sortBy = "created_at"
 	}
 
-	query += ` ORDER BY`
-	query += fmt.Sprintf(" %v", sortBy)
-	query += fmt.Sprintf(" %v", sortDirection)
+	if operator == "" {
+		operator = "="
+	}
 
 	if len(searchField) == 0 {
+		query += ` ORDER BY `
+		query += sortBy
+		query += ` `
+		query += sortDirection
 		query += ` LIMIT`
 		query += ` $1`
 	} else {
-		query += ` LIMIT `
-		query += ` $1`
 		query += ` WHERE `
 		query += searchField
+		query += ` `
+		query += operator
+		query += ` $1`
+		query += ` ORDER BY `
+		query += sortBy
+		query += ` `
+		query += sortDirection
+
+		query += ` LIMIT `
 		query += ` $2`
 	}
+
 	stmt, err := db.Prepare(query)
 
 	if err != nil {
@@ -294,7 +300,6 @@ func GetMany[T any](isTest bool, tableName string, db *sql.DB, limit string, sor
 
 	var rows []*T
 
-	log.Printf("%v", limit)
 	if limit == "" {
 		limit = "100"
 	}
