@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -319,7 +318,6 @@ func QueryRowsToStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, ar
 			}
 
 			paramValue := reflect.ValueOf(params[i])
-			log.Printf("%T,%v", paramValue, paramValue)
 			if paramValue.Kind() == reflect.Ptr {
 				intr := paramValue.Elem().Interface()
 				switch intr.(type) {
