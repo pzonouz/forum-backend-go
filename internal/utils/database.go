@@ -25,7 +25,7 @@ func (d *database) RunQueryOnDB(query string) error {
 }
 
 func NewDatabase() *database {
-	dsn := GetEnv("dsn", "host=localhost port=5432 user=root password=secret dbname=forum sslmode=disable")
+	dsn := GetEnv("dsn", "host=localhost port=5432 user=root password=secret dbname=forum_go sslmode=disable")
 	conn, err := sql.Open("pgx", dsn)
 
 	if err != nil {

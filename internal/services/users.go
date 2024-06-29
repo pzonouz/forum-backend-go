@@ -67,7 +67,14 @@ func (u *UserService) DeleteByID(isTest bool, id int64) error {
 func (u *UserService) GetByID(isTest bool, id int64) (models.User, error) {
 	var excludedFields []string
 	excludedFields = append(excludedFields, "Password")
-	user, err := Get[models.User](isTest, "users", u.db, "id", strconv.Itoa(int(id)), excludedFields)
+	user, err := Get[models.User](
+		isTest,
+		"users",
+		u.db,
+		"id",
+		strconv.Itoa(int(id)),
+		excludedFields,
+	)
 
 	if err != nil {
 		return *user, err
@@ -78,17 +85,31 @@ func (u *UserService) GetByID(isTest bool, id int64) (models.User, error) {
 
 // GetHandler implements Service.
 func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
-	access, _ := r.Cookie("access")
-
-	token, _ := jwt.ParseWithClaims(access.Value, &utils.MyClaims{}, func(_ *jwt.Token) (interface{}, error) {
-		return []byte("secret"), nil
-	})
-
-	claims := token.Claims.(*utils.MyClaims)
-	user, err := u.GetByID(false, claims.ID)
+	user, err := u.GetByID(false, utils.GetUserIDFromRequest(r, w))
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	utils.WriteJSON(w, user)
+}
+
+func (u *UserService) GetByIDHandler(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	ID, err := strconv.Atoi(id)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	user, err := u.GetByID(false, int64(ID))
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
 	}
 
 	utils.WriteJSON(w, user)
@@ -112,7 +133,8 @@ func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if len(sortDirection) != 0 && strings.Compare(sortDirection, "ASC") != 0 && strings.Compare(sortDirection, "DESC") != 0 {
+	if len(sortDirection) != 0 && strings.Compare(sortDirection, "ASC") != 0 &&
+		strings.Compare(sortDirection, "DESC") != 0 {
 		http.Error(w, "Sort direction in not ASC or DESC", http.StatusBadRequest)
 
 		return
@@ -123,7 +145,18 @@ func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, r *http.Request
 	}
 
 	excludedFields = append(excludedFields, "Password", "Role")
-	users, err := GetMany[models.User](false, "users", u.db, limit, sortBy, sortDirection, searchField, searchFieldValue, operator, excludedFields)
+	users, err := GetMany[models.User](
+		false,
+		"users",
+		u.db,
+		limit,
+		sortBy,
+		sortDirection,
+		searchField,
+		searchFieldValue,
+		operator,
+		excludedFields,
+	)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -197,7 +230,10 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expired := time.Now().Add(time.Hour * 24)
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, utils.MyClaims{ID: user.ID, Expired: expired.Unix()})
+	token := jwt.NewWithClaims(
+		jwt.SigningMethodHS256,
+		utils.MyClaims{ID: user.ID, Expired: expired.Unix(), Role: user.Role},
+	)
 	signedToken, err := token.SignedString([]byte("secret"))
 
 	if err != nil {
@@ -216,7 +252,12 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		// Domain:   "",
 	}
 	http.SetCookie(w, &cookie)
-	_, _ = w.Write([]byte(signedToken))
+
+	type data struct {
+		Access string `json:"access"`
+	}
+
+	utils.WriteJSON(w, &data{Access: signedToken})
 }
 
 // registerRoutes implements Service.
@@ -224,10 +265,11 @@ func (u *UserService) RegisterRoutes() {
 	router := u.router
 	APIV1Router := router.PathPrefix("/api/v1/").Subrouter()
 	UsersRouter := APIV1Router.PathPrefix("/users/").Subrouter()
-	UsersRouter.HandleFunc("/get_all/", u.GetHandlerForPlural).Methods("GET")
+	UsersRouter.HandleFunc("/get_all/", middlewares.AdminRoleGuard(u.GetHandlerForPlural)).Methods("GET")
 	UsersRouter.HandleFunc("/", middlewares.LoginGuard(u.GetHandler)).Methods("GET")
+	UsersRouter.HandleFunc("/get_by_id/{id}", u.GetByIDHandler).Methods("GET")
 	UsersRouter.HandleFunc("/register", u.RegisterHandler).Methods("POST")
 	UsersRouter.HandleFunc("/login", u.LoginHandler).Methods("POST")
 	UsersRouter.HandleFunc("/{id}", u.PatchHandler).Methods("PATCH")
-	UsersRouter.HandleFunc("/{id}", u.DeleteHandler).Methods("DELETE")
+	UsersRouter.HandleFunc("/{id}", middlewares.AdminRoleGuard(u.DeleteHandler)).Methods("DELETE")
 }

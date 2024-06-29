@@ -325,6 +325,12 @@ func QueryRowsToStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, ar
 					v.Field(i).SetInt(intr.(int64))
 				case string:
 					v.Field(i).SetString(intr.(string))
+				case time.Time:
+					t, ok := intr.(time.Time)
+					if !ok {
+						return objects, fmt.Errorf("cannot covert to %v", paramValue.Type())
+					}
+					v.Field(i).SetString(t.String())
 				}
 			} else if paramValue.Kind() == reflect.String {
 				v.Field(i).SetString(paramValue.String())

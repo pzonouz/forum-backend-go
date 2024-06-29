@@ -2,7 +2,9 @@ package utils
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -116,5 +118,51 @@ func DeleteQueryCreator(isTest bool, tableName string, searchField string) strin
 	query += ` WHERE `
 	query += searchField
 	query += `= $1`
+
 	return query
+}
+
+func GetUserIDFromRequest(r *http.Request, w http.ResponseWriter) int64 {
+	access, _ := r.Cookie("access")
+
+	token, err := jwt.ParseWithClaims(
+		access.Value,
+		&MyClaims{},
+		func(_ *jwt.Token) (interface{}, error) {
+			return []byte("secret"), nil
+		},
+	)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	claims := token.Claims.(*MyClaims)
+
+	if claims.Expired < time.Now().Unix() {
+		http.Error(w, "expired", http.StatusUnauthorized)
+	}
+	return claims.ID
+}
+
+func GetUserRoleFromRequest(r *http.Request, w http.ResponseWriter) string {
+	access, _ := r.Cookie("access")
+
+	token, err := jwt.ParseWithClaims(
+		access.Value,
+		&MyClaims{},
+		func(_ *jwt.Token) (interface{}, error) {
+			return []byte("secret"), nil
+		},
+	)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	claims := token.Claims.(*MyClaims)
+	log.Print(claims.Role)
+	if claims.Expired < time.Now().Unix() {
+		http.Error(w, "expired", http.StatusUnauthorized)
+	}
+
+	return claims.Role
 }

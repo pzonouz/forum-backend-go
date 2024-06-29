@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"forum-backend-go/internal/middlewares"
 	"forum-backend-go/internal/models"
 	"forum-backend-go/internal/utils"
 )
@@ -51,7 +52,7 @@ func (r *Question) GetHandlerForPlural(w http.ResponseWriter, req *http.Request)
 		sortDirection = "ASC"
 	}
 
-	excludedFields = append(excludedFields, "id")
+	// excludedFields = append(excludedFields, "id")
 	questions, err := GetMany[models.Question](false, "questions", r.db, limit, sortBy, sortDirection, searchField, searchFieldValue, operator, excludedFields)
 
 	if err != nil {
@@ -98,6 +99,7 @@ func (r *Question) PostHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	question.UserID = utils.GetUserIDFromRequest(req, w)
 	id, err := r.Create(false, question)
 
 	if err != nil {
@@ -196,7 +198,7 @@ func (r *Question) RegisterRoutes() {
 	QuestionsRouter := APIV1Router.PathPrefix("/questions/").Subrouter()
 	QuestionsRouter.HandleFunc("/", r.GetHandlerForPlural).Methods("GET")
 	QuestionsRouter.HandleFunc("/{id}", r.GetHandler).Methods("GET")
-	QuestionsRouter.HandleFunc("/", r.PostHandler).Methods("POST")
+	QuestionsRouter.HandleFunc("/", middlewares.LoginGuard(r.PostHandler)).Methods("POST")
 	QuestionsRouter.HandleFunc("/{id}", r.PatchHandler).Methods("PATCH")
 	QuestionsRouter.HandleFunc("/{id}", r.DeleteHandler).Methods("DELETE")
 }

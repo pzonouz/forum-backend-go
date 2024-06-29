@@ -1,7 +1,6 @@
 package services_test
 
 import (
-	"log"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -35,7 +34,6 @@ func TestUserService(t *testing.T) {
 	assert.Equal(want.Name, get.Name)
 	assert.Equal(want.Address, get.Address)
 	assert.Equal(want.PhoneNumber, get.PhoneNumber)
-	log.Print(get)
 	assert.Equal("user", get.Role)
 
 	// Email and Password could not change by this commands
