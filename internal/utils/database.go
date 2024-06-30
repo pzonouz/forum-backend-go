@@ -62,6 +62,11 @@ func (d *database) GetDB(isTest bool) (*sql.DB, error) {
 		if err != nil {
 			return nil, err
 		}
+		err = d.RunQueryOnDB(CreateScoreTableQuery)
+
+		if err != nil {
+			return nil, err
+		}
 
 		return d.db, nil
 	}
@@ -79,6 +84,12 @@ func (d *database) GetDB(isTest bool) (*sql.DB, error) {
 	}
 
 	err = d.RunQueryOnDB(CreateAnswerTableQuery)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = d.RunQueryOnDB(CreateScoreTableQuery)
 
 	if err != nil {
 		return nil, err

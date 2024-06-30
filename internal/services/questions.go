@@ -192,6 +192,9 @@ func (r *Question) GetByID(isTest bool, id int64) (models.Question, error) {
 	return *question, nil
 }
 
+func (r *Question) ScorePostHandler(w http.ResponseWriter, req *http.Request) {
+}
+
 // RegisterRoutes implements Service.
 func (r *Question) RegisterRoutes() {
 	router := r.router

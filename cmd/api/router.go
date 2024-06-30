@@ -31,10 +31,12 @@ func (r *router) registerRoutes() {
 	var questionService services.Service[models.Question] = services.NewQuestionService(r.db, r.getMux())
 
 	var answerService services.Service[models.Answer] = services.NewAnswerService(r.db, r.getMux())
+	var scoreService services.Service[models.Score] = services.NewScoreService(r.db, r.getMux())
 
 	userService.RegisterRoutes()
 	questionService.RegisterRoutes()
 	answerService.RegisterRoutes()
+	scoreService.RegisterRoutes()
 }
 
 func newRouter(db *sql.DB) *router {

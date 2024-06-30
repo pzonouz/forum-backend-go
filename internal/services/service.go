@@ -235,6 +235,7 @@ func GetMany[T any](isTest bool, tableName string, db *sql.DB, limit string, sor
 	objects := make([]*T, 0)
 
 	query := utils.GetManyQueryCreator(isTest, tableName, sortBy, operator, searchField, sortDirection)
+
 	stmt, err := db.Prepare(query)
 
 	if err != nil {

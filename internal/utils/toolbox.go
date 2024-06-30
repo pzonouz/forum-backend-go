@@ -2,7 +2,6 @@ package utils
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
@@ -160,7 +159,6 @@ func GetUserRoleFromRequest(r *http.Request, w http.ResponseWriter) string {
 	}
 
 	claims := token.Claims.(*MyClaims)
-	log.Print(claims.Role)
 	if claims.Expired < time.Now().Unix() {
 		http.Error(w, "expired", http.StatusUnauthorized)
 	}

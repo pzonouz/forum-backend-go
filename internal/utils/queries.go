@@ -64,4 +64,30 @@ const CreateAnswerTableQueryTest = `CREATE TABLE IF NOT EXISTS "answers_test" (
   "question_id" bigint REFERENCES questions(id)
 );`
 
+const CreateScoreTableQuery = `
+  --CREATE TYPE Operator as ENUM('plus','minus');
+  CREATE TABLE IF NOT EXISTS "scores" (
+  "id" bigserial PRIMARY KEY,
+  "operator" Operator NOT NULL,
+  "created_at" timestamp DEFAULT (now()),
+  "user_id" bigint REFERENCES users(id),
+  "question_id" bigint REFERENCES questions(id),
+  "answer_id" bigint REFERENCES answers(id),
+  UNIQUE(user_id,operator,question_id),
+  UNIQUE(user_id,operator,answer_id)
+);`
+
+const CreateScoreTableQueryTest = `
+  CREATE TYPE Operator as ENUM('plus','minus');
+  CREATE TABLE IF NOT EXISTS "scores_test" (
+  "id" bigserial PRIMARY KEY,
+  "operator" Operator NOT NULL,
+  "created_at" timestamp DEFAULT (now()),
+  "user_id" bigint REFERENCES users(id),
+  "question_id" bigint REFERENCES questions(id),
+  "answer_id" bigint REFERENCES answers(id),
+  UNIQUE(user_id,question_id),
+  UNIQUE(user_id,answer_id)
+);`
+
 const DeleteTestTableQuery = `DROP TABLE IF EXISTS "%s_test";`
