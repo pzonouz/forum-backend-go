@@ -38,6 +38,7 @@ type MyClaims struct {
 	ID          int64
 	Email       string
 	Address     string
+	Name        string
 	PhoneNumber string
 	Role        string
 	Expired     int64
@@ -122,7 +123,7 @@ func DeleteQueryCreator(isTest bool, tableName string, searchField string) strin
 	return query
 }
 
-func GetUserIDFromRequest(r *http.Request, w http.ResponseWriter) int64 {
+func GetUserFromRequest(r *http.Request, w http.ResponseWriter) *MyClaims {
 	access, _ := r.Cookie("access")
 
 	token, err := jwt.ParseWithClaims(
@@ -141,7 +142,7 @@ func GetUserIDFromRequest(r *http.Request, w http.ResponseWriter) int64 {
 	if claims.Expired < time.Now().Unix() {
 		http.Error(w, "expired", http.StatusUnauthorized)
 	}
-	return claims.ID
+	return claims
 }
 
 func GetUserRoleFromRequest(r *http.Request, w http.ResponseWriter) string {

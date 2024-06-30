@@ -85,7 +85,7 @@ func (u *UserService) GetByID(isTest bool, id int64) (models.User, error) {
 
 // GetHandler implements Service.
 func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
-	user, err := u.GetByID(false, utils.GetUserIDFromRequest(r, w))
+	user, err := u.GetByID(false, utils.GetUserFromRequest(r, w).ID)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -232,7 +232,7 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	expired := time.Now().Add(time.Hour * 24)
 	token := jwt.NewWithClaims(
 		jwt.SigningMethodHS256,
-		utils.MyClaims{ID: user.ID, Expired: expired.Unix(), Role: user.Role},
+		utils.MyClaims{ID: user.ID, Expired: expired.Unix(), Role: user.Role, Name: user.Name},
 	)
 	signedToken, err := token.SignedString([]byte("secret"))
 

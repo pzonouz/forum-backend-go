@@ -31,6 +31,7 @@ const CreateQuestionTableQuery = `CREATE TABLE IF NOT EXISTS "questions" (
   "title" varchar UNIQUE,
   "description" text,
   "created_at" timestamp DEFAULT (now()),
+  "user_name" varchar,
   "user_id" bigint REFERENCES users(id)
 );`
 
@@ -39,6 +40,28 @@ const CreateQuestionTableQueryTest = `CREATE TABLE IF NOT EXISTS "questions_test
   "title" varchar UNIQUE,
   "description" text,
   "created_at" timestamp DEFAULT (now()),
+  "user_name" varchar,
   "user_id" bigint REFERENCES users(id)
 );`
+
+const CreateAnswerTableQuery = `CREATE TABLE IF NOT EXISTS "answers" (
+  "id" bigserial PRIMARY KEY,
+  "title" varchar UNIQUE,
+  "description" text,
+  "created_at" timestamp DEFAULT (now()),
+  "user_name" varchar,
+  "user_id" bigint REFERENCES users(id),
+  "question_id" bigint REFERENCES questions(id)
+);`
+
+const CreateAnswerTableQueryTest = `CREATE TABLE IF NOT EXISTS "answers_test" (
+  "id" bigserial PRIMARY KEY,
+  "title" varchar UNIQUE,
+  "description" text,
+  "created_at" timestamp DEFAULT (now()),
+  "user_name" varchar,
+  "user_id" bigint REFERENCES users(id),
+  "question_id" bigint REFERENCES questions(id)
+);`
+
 const DeleteTestTableQuery = `DROP TABLE IF EXISTS "%s_test";`
