@@ -107,13 +107,47 @@ func (s *Score) GetHandlerForAnswer(w http.ResponseWriter, req *http.Request) {
 
 func (s *Score) PostHandlerForQuestion(w http.ResponseWriter, req *http.Request) {
 	id := mux.Vars(req)["id"]
-	score := utils.ReadJSON[models.Score](w, req)
+	intID, err := strconv.Atoi(id)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
 	user := utils.GetUserFromRequest(req, w)
+	scoreNow, err := utils.GetScoreOfUserToQuestion(s.db, user.ID, int64(intID))
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	score := utils.ReadJSON[models.Score](w, req)
+
+	if scoreNow >= 1 && strings.Compare(score.Operator, "plus") == 0 || scoreNow <= -1 && strings.Compare(score.Operator, "minus") == 0 {
+		http.Error(w, "Voted Before", http.StatusBadRequest)
+
+		return
+	}
+
+	if scoreNow == 1 && score.Operator == "minus" || scoreNow == -1 && score.Operator == "plus" {
+		err := utils.ResetScoreOfUserToQustion(s.db, user.ID, int64(intID))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+
+			return
+		}
+
+		return
+	}
+
 	query := `INSERT INTO scores (operator,question_id,user_id) VALUES($1,$2,$3);`
 	stmt, err := s.db.Prepare(query)
 
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
 	}
@@ -122,14 +156,13 @@ func (s *Score) PostHandlerForQuestion(w http.ResponseWriter, req *http.Request)
 
 	_, err = stmt.Exec(score.Operator, id, user.ID)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 }
 
 func (s *Score) PostHandlerForAnswer(w http.ResponseWriter, req *http.Request) {
-
 	id := mux.Vars(req)["id"]
 	score := utils.ReadJSON[models.Score](w, req)
 	user := utils.GetUserFromRequest(req, w)
@@ -137,7 +170,7 @@ func (s *Score) PostHandlerForAnswer(w http.ResponseWriter, req *http.Request) {
 	stmt, err := s.db.Prepare(query)
 
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
 	}
@@ -146,7 +179,7 @@ func (s *Score) PostHandlerForAnswer(w http.ResponseWriter, req *http.Request) {
 
 	_, err = stmt.Exec(score.Operator, id, user.ID)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
 	}

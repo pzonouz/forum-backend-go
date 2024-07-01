@@ -72,10 +72,11 @@ const CreateScoreTableQuery = `
   "created_at" timestamp DEFAULT (now()),
   "user_id" bigint REFERENCES users(id),
   "question_id" bigint REFERENCES questions(id),
-  "answer_id" bigint REFERENCES answers(id),
-  UNIQUE(user_id,operator,question_id),
-  UNIQUE(user_id,operator,answer_id)
+  "answer_id" bigint REFERENCES answers(id)
 );`
+
+// UNIQUE(user_id,operator,question_id),
+// UNIQUE(user_id,operator,answer_id)
 
 const CreateScoreTableQueryTest = `
   CREATE TYPE Operator as ENUM('plus','minus');
@@ -85,9 +86,7 @@ const CreateScoreTableQueryTest = `
   "created_at" timestamp DEFAULT (now()),
   "user_id" bigint REFERENCES users(id),
   "question_id" bigint REFERENCES questions(id),
-  "answer_id" bigint REFERENCES answers(id),
-  UNIQUE(user_id,question_id),
-  UNIQUE(user_id,answer_id)
-);`
+  "answer_id" bigint REFERENCES answers(id)
+  );`
 
 const DeleteTestTableQuery = `DROP TABLE IF EXISTS "%s_test";`

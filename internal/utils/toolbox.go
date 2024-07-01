@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -101,6 +102,7 @@ func GetQueryCreator(isTest bool, tableName string, searchField string) string {
 	query += `" WHERE `
 	query += searchField
 	query += `= $1`
+
 	return query
 }
 
@@ -141,6 +143,7 @@ func GetUserFromRequest(r *http.Request, w http.ResponseWriter) *MyClaims {
 	if claims.Expired < time.Now().Unix() {
 		http.Error(w, "expired", http.StatusUnauthorized)
 	}
+
 	return claims
 }
 
@@ -164,4 +167,70 @@ func GetUserRoleFromRequest(r *http.Request, w http.ResponseWriter) string {
 	}
 
 	return claims.Role
+}
+
+func GetScoreOfUserToQuestion(db *sql.DB, user_id int64, question_id int64) (int64, error) {
+	query := `SELECT SUM(CASE
+             WHEN operator = 'plus' THEN 1
+              ELSE -1
+             END) AS total
+            FROM scores WHERE user_id=$1 AND question_id=$2;`
+	stmt, err := db.Prepare(query)
+
+	if err != nil {
+		return 0, err
+	}
+
+	defer stmt.Close()
+
+	var result int64
+	err = stmt.QueryRow(user_id, question_id).Scan(&result)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
+}
+
+func GetScoreOfUserToAnswer(db *sql.DB, user_id int64, answer_id int64) (int64, error) {
+	query := `SELECT SUM(CASE
+             WHEN operator = 'plus' THEN 1
+              ELSE -1
+             END) AS total
+            FROM scores WHERE user_id=$1 AND answer_id=$2;`
+	stmt, err := db.Prepare(query)
+
+	if err != nil {
+		return 0, err
+	}
+
+	defer stmt.Close()
+
+	var result int64
+	err = stmt.QueryRow(user_id, answer_id).Scan(&result)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
+}
+
+func ResetScoreOfUserToQustion(db *sql.DB, user_id int64, question_id int64) error {
+	query := `DELETE FROM scores WHERE user_id=$1 AND question_id=$2`
+	stmt, err := db.Prepare(query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(user_id, question_id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
