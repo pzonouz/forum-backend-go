@@ -63,30 +63,36 @@ func (s *Score) GetHandlerForPlural(w http.ResponseWriter, req *http.Request) {
 	utils.WriteJSON(w, scores)
 }
 
+type data struct {
+	Score int64 `json:"score"`
+}
+
 func (s *Score) GetHandlerForQuestion(w http.ResponseWriter, req *http.Request) {
-	// params := mux.Vars(req)
-	// id, err := strconv.Atoi(params["id"])
-	//
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	//
-	// 	return
-	// }
-	//
-	// score, err := r.GetByID(false, int64(id))
-	//
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	//
-	// 	return
-	// }
-	//
-	// utils.WriteJSON(w, score)
+	id := mux.Vars(req)["id"]
+	intID, err := strconv.Atoi(id)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	scoreNow, err := utils.GetScoreOfQuestion(s.db, int64(intID))
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	utils.WriteJSON(w, &data{
+		Score: scoreNow,
+	})
 }
 
 func (s *Score) GetHandlerForAnswer(w http.ResponseWriter, req *http.Request) {
-	params := mux.Vars(req)
-	id, err := strconv.Atoi(params["id"])
+	id := mux.Vars(req)["id"]
+	intID, err := strconv.Atoi(id)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -94,7 +100,7 @@ func (s *Score) GetHandlerForAnswer(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	score, err := s.GetByID(false, int64(id))
+	scoreNow, err := utils.GetScoreOfAnswer(s.db, int64(intID))
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -102,7 +108,9 @@ func (s *Score) GetHandlerForAnswer(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, score)
+	utils.WriteJSON(w, &data{
+		Score: scoreNow,
+	})
 }
 
 func (s *Score) PostHandlerForQuestion(w http.ResponseWriter, req *http.Request) {
@@ -164,8 +172,42 @@ func (s *Score) PostHandlerForQuestion(w http.ResponseWriter, req *http.Request)
 
 func (s *Score) PostHandlerForAnswer(w http.ResponseWriter, req *http.Request) {
 	id := mux.Vars(req)["id"]
-	score := utils.ReadJSON[models.Score](w, req)
+	intID, err := strconv.Atoi(id)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
 	user := utils.GetUserFromRequest(req, w)
+	scoreNow, err := utils.GetScoreOfUserToAnswer(s.db, user.ID, int64(intID))
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	score := utils.ReadJSON[models.Score](w, req)
+
+	if scoreNow >= 1 && strings.Compare(score.Operator, "plus") == 0 || scoreNow <= -1 && strings.Compare(score.Operator, "minus") == 0 {
+		http.Error(w, "Voted Before", http.StatusBadRequest)
+
+		return
+	}
+
+	if scoreNow == 1 && score.Operator == "minus" || scoreNow == -1 && score.Operator == "plus" {
+		err := utils.ResetScoreOfUserToAnswer(s.db, user.ID, int64(intID))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+
+			return
+		}
+
+		return
+	}
+
 	query := `INSERT INTO scores (operator,answer_id,user_id) VALUES($1,$2,$3);`
 	stmt, err := s.db.Prepare(query)
 

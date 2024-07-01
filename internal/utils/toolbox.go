@@ -170,10 +170,10 @@ func GetUserRoleFromRequest(r *http.Request, w http.ResponseWriter) string {
 }
 
 func GetScoreOfUserToQuestion(db *sql.DB, user_id int64, question_id int64) (int64, error) {
-	query := `SELECT SUM(CASE
+	query := `SELECT COALESCE(SUM(CASE
              WHEN operator = 'plus' THEN 1
               ELSE -1
-             END) AS total
+             END),0) AS total
             FROM scores WHERE user_id=$1 AND question_id=$2;`
 	stmt, err := db.Prepare(query)
 
@@ -194,10 +194,10 @@ func GetScoreOfUserToQuestion(db *sql.DB, user_id int64, question_id int64) (int
 }
 
 func GetScoreOfUserToAnswer(db *sql.DB, user_id int64, answer_id int64) (int64, error) {
-	query := `SELECT SUM(CASE
+	query := `SELECT COALESCE(SUM(CASE
              WHEN operator = 'plus' THEN 1
               ELSE -1
-             END) AS total
+             END),0) AS total
             FROM scores WHERE user_id=$1 AND answer_id=$2;`
 	stmt, err := db.Prepare(query)
 
@@ -217,6 +217,54 @@ func GetScoreOfUserToAnswer(db *sql.DB, user_id int64, answer_id int64) (int64, 
 	return result, nil
 }
 
+func GetScoreOfQuestion(db *sql.DB, question_id int64) (int64, error) {
+	query := `SELECT COALESCE(SUM(CASE
+             WHEN operator = 'plus' THEN 1
+              ELSE -1
+             END),0) AS total
+            FROM scores WHERE question_id=$1;`
+	stmt, err := db.Prepare(query)
+
+	if err != nil {
+		return 0, err
+	}
+
+	defer stmt.Close()
+
+	var result int64
+	err = stmt.QueryRow(question_id).Scan(&result)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
+}
+
+func GetScoreOfAnswer(db *sql.DB, answer_id int64) (int64, error) {
+	query := `SELECT COALESCE(SUM(CASE
+             WHEN operator = 'plus' THEN 1
+              ELSE -1
+             END),0) AS total
+            FROM scores WHERE answer_id=$1;`
+	stmt, err := db.Prepare(query)
+
+	if err != nil {
+		return 0, err
+	}
+
+	defer stmt.Close()
+
+	var result int64
+	err = stmt.QueryRow(answer_id).Scan(&result)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
+}
+
 func ResetScoreOfUserToQustion(db *sql.DB, user_id int64, question_id int64) error {
 	query := `DELETE FROM scores WHERE user_id=$1 AND question_id=$2`
 	stmt, err := db.Prepare(query)
@@ -228,6 +276,24 @@ func ResetScoreOfUserToQustion(db *sql.DB, user_id int64, question_id int64) err
 	defer stmt.Close()
 
 	_, err = stmt.Exec(user_id, question_id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ResetScoreOfUserToAnswer(db *sql.DB, user_id int64, answer_id int64) error {
+	query := `DELETE FROM scores WHERE user_id=$1 AND answer_id=$2`
+	stmt, err := db.Prepare(query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(user_id, answer_id)
 	if err != nil {
 		return err
 	}

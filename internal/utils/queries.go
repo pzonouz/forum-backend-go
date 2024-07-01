@@ -46,7 +46,6 @@ const CreateQuestionTableQueryTest = `CREATE TABLE IF NOT EXISTS "questions_test
 
 const CreateAnswerTableQuery = `CREATE TABLE IF NOT EXISTS "answers" (
   "id" bigserial PRIMARY KEY,
-  "title" varchar UNIQUE,
   "description" text,
   "created_at" timestamp DEFAULT (now()),
   "user_name" varchar,
@@ -56,7 +55,6 @@ const CreateAnswerTableQuery = `CREATE TABLE IF NOT EXISTS "answers" (
 
 const CreateAnswerTableQueryTest = `CREATE TABLE IF NOT EXISTS "answers_test" (
   "id" bigserial PRIMARY KEY,
-  "title" varchar UNIQUE,
   "description" text,
   "created_at" timestamp DEFAULT (now()),
   "user_name" varchar,
@@ -75,11 +73,8 @@ const CreateScoreTableQuery = `
   "answer_id" bigint REFERENCES answers(id)
 );`
 
-// UNIQUE(user_id,operator,question_id),
-// UNIQUE(user_id,operator,answer_id)
-
 const CreateScoreTableQueryTest = `
-  CREATE TYPE Operator as ENUM('plus','minus');
+  --CREATE TYPE Operator as ENUM('plus','minus');
   CREATE TABLE IF NOT EXISTS "scores_test" (
   "id" bigserial PRIMARY KEY,
   "operator" Operator NOT NULL,

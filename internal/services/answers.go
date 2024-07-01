@@ -86,11 +86,6 @@ func (r *Answer) GetHandler(w http.ResponseWriter, req *http.Request) {
 
 func (r *Answer) PostHandler(w http.ResponseWriter, req *http.Request) {
 	answer := utils.ReadJSON[models.Answer](w, req)
-	if len(answer.Title) < 11 {
-		http.Error(w, "At least 10 character for title", http.StatusBadRequest)
-
-		return
-	}
 
 	if len(answer.Description) < 21 {
 		http.Error(w, "At least 20 character for Description", http.StatusBadRequest)
@@ -117,12 +112,6 @@ func (r *Answer) PostHandler(w http.ResponseWriter, req *http.Request) {
 func (r *Answer) PatchHandler(w http.ResponseWriter, req *http.Request) {
 	id := mux.Vars(req)["id"]
 	answer := utils.ReadJSON[models.Answer](w, req)
-
-	if answer.Title != "" && len(answer.Title) < 11 {
-		http.Error(w, "At least 10 character for title", http.StatusBadRequest)
-
-		return
-	}
 
 	if answer.Description != "" && len(answer.Description) < 21 {
 		http.Error(w, "At least 20 character for Description", http.StatusBadRequest)
