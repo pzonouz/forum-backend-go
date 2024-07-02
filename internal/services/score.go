@@ -123,7 +123,11 @@ func (s *Score) PostHandlerForQuestion(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	user := utils.GetUserFromRequest(req, w)
+	user, err := utils.GetUserFromRequest(req, w)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+	}
+
 	scoreNow, err := utils.GetScoreOfUserToQuestion(s.db, user.ID, int64(intID))
 
 	if err != nil {
@@ -180,7 +184,11 @@ func (s *Score) PostHandlerForAnswer(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	user := utils.GetUserFromRequest(req, w)
+	user, err := utils.GetUserFromRequest(req, w)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
 	scoreNow, err := utils.GetScoreOfUserToAnswer(s.db, user.ID, int64(intID))
 
 	if err != nil {

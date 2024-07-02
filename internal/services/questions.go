@@ -98,7 +98,11 @@ func (r *Question) PostHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	user := utils.GetUserFromRequest(req, w)
+	user, err := utils.GetUserFromRequest(req, w)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
 	question.UserID = user.ID
 	question.UserName = user.Name
 	id, err := r.Create(false, question)

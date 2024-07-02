@@ -85,7 +85,12 @@ func (u *UserService) GetByID(isTest bool, id int64) (models.User, error) {
 
 // GetHandler implements Service.
 func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
-	user, err := u.GetByID(false, utils.GetUserFromRequest(r, w).ID)
+	requestUser, err := utils.GetUserFromRequest(r, w)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	user, err := u.GetByID(false, requestUser.ID)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

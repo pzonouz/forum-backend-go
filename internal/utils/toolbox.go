@@ -124,8 +124,11 @@ func DeleteQueryCreator(isTest bool, tableName string, searchField string) strin
 	return query
 }
 
-func GetUserFromRequest(r *http.Request, w http.ResponseWriter) *MyClaims {
-	access, _ := r.Cookie("access")
+func GetUserFromRequest(r *http.Request, w http.ResponseWriter) (*MyClaims, error) {
+	access, err := r.Cookie("access")
+	if err != nil {
+		return nil, err
+	}
 
 	token, err := jwt.ParseWithClaims(
 		access.Value,
@@ -134,6 +137,7 @@ func GetUserFromRequest(r *http.Request, w http.ResponseWriter) *MyClaims {
 			return []byte("secret"), nil
 		},
 	)
+
 	if err != nil {
 		panic(err.Error())
 	}
@@ -144,7 +148,7 @@ func GetUserFromRequest(r *http.Request, w http.ResponseWriter) *MyClaims {
 		http.Error(w, "expired", http.StatusUnauthorized)
 	}
 
-	return claims
+	return claims, nil
 }
 
 func GetUserRoleFromRequest(r *http.Request, w http.ResponseWriter) string {
