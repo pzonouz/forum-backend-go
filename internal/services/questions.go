@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -26,39 +25,62 @@ type Question struct {
 	router *mux.Router
 }
 
+type QuestionModel struct {
+	ID          int64  `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	CreatedAt   string `json:"createdAt"`
+	UserName    string `json:"userName"`
+	UserID      int64  `json:"userId"`
+	ScoreCount  int64  `json:"scoreCount"`
+	AnswerCount int64  `json:"answerCount"`
+}
+
 func (r *Question) GetHandlerForPlural(w http.ResponseWriter, req *http.Request) {
-	var excludedFields []string
+	// var excludedFields []string
+	//
+	// requestQuery := req.URL.Query()
+	// sortBy := requestQuery.Get("sort_by")
+	// sortDirection := requestQuery.Get("sort_direction")
+	// searchField := requestQuery.Get("search_field")
+	// searchFieldValue := requestQuery.Get("search_field_value")
+	// operator := requestQuery.Get("operator")
+	// limit := requestQuery.Get("limit")
+	//
+	// if _, err := strconv.Atoi(limit); err != nil && len(limit) != 0 {
+	// 	http.Error(w, "Limit is not number", http.StatusBadRequest)
+	//
+	// 	return
+	// }
+	//
+	// if len(sortDirection) != 0 && strings.Compare(sortDirection, "ASC") != 0 && strings.Compare(sortDirection, "DESC") != 0 {
+	// 	http.Error(w, "Sort direction in not ASC or DESC", http.StatusBadRequest)
+	//
+	// 	return
+	// }
+	//
+	// if len(sortDirection) == 0 {
+	// 	sortDirection = "ASC"
+	// }
 
-	requestQuery := req.URL.Query()
-	sortBy := requestQuery.Get("sort_by")
-	sortDirection := requestQuery.Get("sort_direction")
-	searchField := requestQuery.Get("search_field")
-	searchFieldValue := requestQuery.Get("search_field_value")
-	operator := requestQuery.Get("operator")
-	limit := requestQuery.Get("limit")
-
-	if _, err := strconv.Atoi(limit); err != nil && len(limit) != 0 {
-		http.Error(w, "Limit is not number", http.StatusBadRequest)
-
-		return
-	}
-
-	if len(sortDirection) != 0 && strings.Compare(sortDirection, "ASC") != 0 && strings.Compare(sortDirection, "DESC") != 0 {
-		http.Error(w, "Sort direction in not ASC or DESC", http.StatusBadRequest)
-
-		return
-	}
-
-	if len(sortDirection) == 0 {
-		sortDirection = "ASC"
-	}
-
-	questions, err := GetMany[models.Question](false, "questions", r.db, limit, sortBy, sortDirection, searchField, searchFieldValue, operator, excludedFields)
+	// questions, err := GetMany[models.Question](false, "questions", r.db, limit, sortBy, sortDirection, searchField, searchFieldValue, operator, excludedFields)
+	query := `SELECT qs.id,qs.title,qs.description,qs.created_at,us.name,us.id,COUNT(DISTINCT ans.id) as answer_count,COUNT(DISTINCT sc.id) as score_count FROM questions as qs LEFT JOIN users as us ON qs.user_id=us.id LEFT JOIN answers as ans ON ans.question_id=qs.id LEFT JOIN scores as sc ON sc.question_id=qs.id GROUP BY qs.id,us.name,us.id`
+	rows, err := r.db.Query(query)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
+	}
+
+	defer rows.Close()
+
+	var questions []QuestionModel
+
+	for rows.Next() {
+		question := QuestionModel{}
+		_ = rows.Scan(&question.ID, &question.Title, &question.Description, &question.CreatedAt, &question.UserName, &question.UserID, &question.AnswerCount, &question.ScoreCount)
+		questions = append(questions, question)
 	}
 
 	utils.WriteJSON(w, questions)
