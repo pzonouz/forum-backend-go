@@ -32,7 +32,7 @@ const CreateQuestionTableQuery = `CREATE TABLE IF NOT EXISTS "questions" (
   "description" text,
   "created_at" timestamp DEFAULT (now()),
   "user_name" varchar,
-  "user_id" bigint REFERENCES users(id)
+  "user_id" bigint REFERENCES users(id) ON DELETE CASCADE
 );`
 
 const CreateQuestionTableQueryTest = `CREATE TABLE IF NOT EXISTS "questions_test" (
@@ -41,7 +41,7 @@ const CreateQuestionTableQueryTest = `CREATE TABLE IF NOT EXISTS "questions_test
   "description" text,
   "created_at" timestamp DEFAULT (now()),
   "user_name" varchar,
-  "user_id" bigint REFERENCES users(id)
+  "user_id" bigint REFERENCES users(id) ON DELETE CASCADE
 );`
 
 const CreateAnswerTableQuery = `CREATE TABLE IF NOT EXISTS "answers" (
@@ -49,8 +49,8 @@ const CreateAnswerTableQuery = `CREATE TABLE IF NOT EXISTS "answers" (
   "description" text,
   "created_at" timestamp DEFAULT (now()),
   "user_name" varchar,
-  "user_id" bigint REFERENCES users(id),
-  "question_id" bigint REFERENCES questions(id)
+  "user_id" bigint REFERENCES users(id) ON DELETE CASCADE,
+  "question_id" bigint REFERENCES questions(id) ON DELETE CASCADE
 );`
 
 const CreateAnswerTableQueryTest = `CREATE TABLE IF NOT EXISTS "answers_test" (
@@ -58,8 +58,8 @@ const CreateAnswerTableQueryTest = `CREATE TABLE IF NOT EXISTS "answers_test" (
   "description" text,
   "created_at" timestamp DEFAULT (now()),
   "user_name" varchar,
-  "user_id" bigint REFERENCES users(id),
-  "question_id" bigint REFERENCES questions(id)
+  "user_id" bigint REFERENCES users(id) ON DELETE CASCADE,
+  "question_id" bigint REFERENCES questions(id) ON DELTETE CASCADE
 );`
 
 const CreateScoreTableQuery = `
@@ -69,8 +69,8 @@ const CreateScoreTableQuery = `
   "operator" Operator NOT NULL,
   "created_at" timestamp DEFAULT (now()),
   "user_id" bigint REFERENCES users(id),
-  "question_id" bigint REFERENCES questions(id),
-  "answer_id" bigint REFERENCES answers(id)
+  "question_id" bigint REFERENCES questions(id) ON DELETE CASCADE,
+  "answer_id" bigint REFERENCES answers(id) ON DELETE CASCADE
 );`
 
 const CreateScoreTableQueryTest = `
@@ -80,8 +80,8 @@ const CreateScoreTableQueryTest = `
   "operator" Operator NOT NULL,
   "created_at" timestamp DEFAULT (now()),
   "user_id" bigint REFERENCES users(id),
-  "question_id" bigint REFERENCES questions(id),
-  "answer_id" bigint REFERENCES answers(id)
+  "question_id" bigint REFERENCES questions(id) ON DELETE CASCADE,
+  "answer_id" bigint REFERENCES answers(id) ON DELETE CASCADE
   );`
 
 const DeleteTestTableQuery = `DROP TABLE IF EXISTS "%s_test";`

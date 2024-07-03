@@ -2,6 +2,7 @@ package services
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -105,6 +106,7 @@ func (r *Question) PostHandler(w http.ResponseWriter, req *http.Request) {
 
 	question.UserID = user.ID
 	question.UserName = user.Name
+	log.Printf("%v,%v", question.UserName, user.Name)
 	id, err := r.Create(false, question)
 
 	if err != nil {
@@ -119,28 +121,49 @@ func (r *Question) PostHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Question) PatchHandler(w http.ResponseWriter, req *http.Request) {
-	id := mux.Vars(req)["id"]
-	question := utils.ReadJSON[models.Question](w, req)
+	id, err := strconv.Atoi(mux.Vars(req)["id"])
+	if err != nil {
+		http.Error(w, "ID is not integer", http.StatusBadRequest)
 
-	if question.Title != "" && len(question.Title) < 11 {
+		return
+	}
+
+	questionPartial := utils.ReadJSON[models.Question](w, req)
+	question, err := r.GetByID(false, int64(id))
+
+	if err != nil {
+		http.Error(w, "not Found", http.StatusBadRequest)
+
+		return
+	}
+
+	user, err := utils.GetUserFromRequest(req, w)
+
+	if err != nil {
+		http.Error(w, "", http.StatusUnauthorized)
+
+		return
+	}
+
+	if user.ID != question.UserID && user.Role != "admin" {
+		http.Error(w, "", http.StatusUnauthorized)
+
+		return
+	}
+
+	if questionPartial.Title != "" && len(questionPartial.Title) < 11 {
 		http.Error(w, "At least 10 character for title", http.StatusBadRequest)
 
 		return
 	}
 
-	if question.Description != "" && len(question.Description) < 21 {
+	if questionPartial.Description != "" && len(questionPartial.Description) < 21 {
 		http.Error(w, "At least 20 character for Description", http.StatusBadRequest)
 
 		return
 	}
 
-	ID, err := strconv.Atoi(id)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	}
-
-	err = r.EditByID(false, int64(ID), question)
+	err = r.EditByID(false, int64(id), questionPartial)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -148,14 +171,37 @@ func (r *Question) PatchHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Question) DeleteHandler(w http.ResponseWriter, req *http.Request) {
-	id := mux.Vars(req)["id"]
-	ID, err := strconv.Atoi(id)
-
+	id, err := strconv.Atoi(mux.Vars(req)["id"])
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "ID is not integer", http.StatusBadRequest)
+
+		return
 	}
 
-	err = r.DeleteByID(false, int64(ID))
+	question, err := r.GetByID(false, int64(id))
+
+	if err != nil {
+		http.Error(w, "not Found", http.StatusBadRequest)
+
+		return
+	}
+
+	user, err := utils.GetUserFromRequest(req, w)
+
+	if err != nil {
+		http.Error(w, "", http.StatusUnauthorized)
+
+		return
+	}
+
+	if user.ID != question.UserID && user.Role != "admin" {
+		http.Error(w, "", http.StatusUnauthorized)
+
+		return
+	}
+
+	err = r.DeleteByID(false, int64(id))
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}

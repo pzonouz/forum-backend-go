@@ -149,7 +149,7 @@ func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, r *http.Request
 		sortDirection = "ASC"
 	}
 
-	excludedFields = append(excludedFields, "Password", "Role")
+	excludedFields = append(excludedFields, "Password")
 	users, err := GetMany[models.User](
 		false,
 		"users",
@@ -201,6 +201,7 @@ func (u *UserService) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user.Password = string(encryptedPassword)
+
 	id, err := u.Create(false, user)
 
 	if err != nil {
@@ -237,7 +238,7 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	expired := time.Now().Add(time.Hour * 24)
 	token := jwt.NewWithClaims(
 		jwt.SigningMethodHS256,
-		utils.MyClaims{ID: user.ID, Expired: expired.Unix(), Role: user.Role, Name: user.Name},
+		utils.MyClaims{ID: user.ID, Expired: expired.Unix(), Role: user.Role, Name: user.Name, Email: user.Email},
 	)
 	signedToken, err := token.SignedString([]byte("secret"))
 
