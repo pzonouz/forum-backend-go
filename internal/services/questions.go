@@ -30,6 +30,7 @@ type QuestionModel struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	CreatedAt   string `json:"createdAt"`
+	ViewCount   int64  `json:"view"`
 	UserName    string `json:"userName"`
 	UserID      int64  `json:"userId"`
 	ScoreCount  int64  `json:"scoreCount"`
@@ -64,7 +65,7 @@ func (r *Question) GetHandlerForPlural(w http.ResponseWriter, req *http.Request)
 	// }
 
 	// questions, err := GetMany[models.Question](false, "questions", r.db, limit, sortBy, sortDirection, searchField, searchFieldValue, operator, excludedFields)
-	query := `SELECT qs.id,qs.title,qs.description,qs.created_at,us.name,us.id,COUNT(DISTINCT ans.id) as answer_count,COUNT(DISTINCT sc.id) as score_count FROM questions as qs LEFT JOIN users as us ON qs.user_id=us.id LEFT JOIN answers as ans ON ans.question_id=qs.id LEFT JOIN scores as sc ON sc.question_id=qs.id GROUP BY qs.id,us.name,us.id`
+	query := `SELECT qs.id,qs.title,qs.description,qs.created_at,us.name,us.id,COUNT(DISTINCT vw.id) as view_count,COUNT(DISTINCT ans.id) as answer_count,COUNT(DISTINCT sc.id) as score_count FROM questions as qs LEFT JOIN "views" as vw ON vw.question_id=qs.id LEFT JOIN users as us ON qs.user_id=us.id LEFT JOIN answers as ans ON ans.question_id=qs.id LEFT JOIN scores as sc ON sc.question_id=qs.id GROUP BY qs.id,us.name,us.id`
 	rows, err := r.db.Query(query)
 
 	if err != nil {
@@ -79,7 +80,7 @@ func (r *Question) GetHandlerForPlural(w http.ResponseWriter, req *http.Request)
 
 	for rows.Next() {
 		question := QuestionModel{}
-		_ = rows.Scan(&question.ID, &question.Title, &question.Description, &question.CreatedAt, &question.UserName, &question.UserID, &question.AnswerCount, &question.ScoreCount)
+		_ = rows.Scan(&question.ID, &question.Title, &question.Description, &question.CreatedAt, &question.UserName, &question.UserID, &question.ViewCount, &question.AnswerCount, &question.ScoreCount)
 		questions = append(questions, question)
 	}
 
@@ -105,6 +106,23 @@ func (r *Question) GetHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	utils.WriteJSON(w, question)
+}
+
+func (r *Question) GetViewUpHandler(w http.ResponseWriter, req *http.Request) {
+	params := mux.Vars(req)
+	id, err := strconv.Atoi(params["id"])
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	user, _ := utils.GetUserFromRequest(req, w)
+	query := `INSERT INTO "views" (question_id,user_id) VALUES ($1,$2)`
+	_, _ = r.db.Exec(query, id, user.ID)
+
+	return
 }
 
 func (r *Question) PostHandler(w http.ResponseWriter, req *http.Request) {
@@ -274,6 +292,7 @@ func (r *Question) RegisterRoutes() {
 	QuestionsRouter := APIV1Router.PathPrefix("/questions/").Subrouter()
 	QuestionsRouter.HandleFunc("/", r.GetHandlerForPlural).Methods("GET")
 	QuestionsRouter.HandleFunc("/{id}", r.GetHandler).Methods("GET")
+	QuestionsRouter.HandleFunc("/{id}/view_up", middlewares.LoginGuard(r.GetViewUpHandler)).Methods("GET")
 	QuestionsRouter.HandleFunc("/", middlewares.LoginGuard(r.PostHandler)).Methods("POST")
 	QuestionsRouter.HandleFunc("/{id}", r.PatchHandler).Methods("PATCH")
 	QuestionsRouter.HandleFunc("/{id}", r.DeleteHandler).Methods("DELETE")

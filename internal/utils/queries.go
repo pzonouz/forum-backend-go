@@ -59,7 +59,7 @@ const CreateAnswerTableQueryTest = `CREATE TABLE IF NOT EXISTS "answers_test" (
   "created_at" timestamp DEFAULT (now()),
   "user_name" varchar,
   "user_id" bigint REFERENCES users(id) ON DELETE CASCADE,
-  "question_id" bigint REFERENCES questions(id) ON DELTETE CASCADE
+  "question_id" bigint REFERENCES questions(id) ON DELETE CASCADE
 );`
 
 const CreateScoreTableQuery = `
@@ -83,5 +83,12 @@ const CreateScoreTableQueryTest = `
   "question_id" bigint REFERENCES questions(id) ON DELETE CASCADE,
   "answer_id" bigint REFERENCES answers(id) ON DELETE CASCADE
   );`
+
+const CreateViewTableQuery = `CREATE TABLE IF NOT EXISTS "views" (
+  "id" bigserial PRIMARY KEY,
+  "question_id" bigint REFERENCES questions(id) ON DELETE CASCADE,
+  "user_id" bigint REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT UN_USER UNIQUE (question_id,user_id)
+  )`
 
 const DeleteTestTableQuery = `DROP TABLE IF EXISTS "%s_test";`
