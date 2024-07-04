@@ -50,7 +50,8 @@ const CreateAnswerTableQuery = `CREATE TABLE IF NOT EXISTS "answers" (
   "created_at" timestamp DEFAULT (now()),
   "user_name" varchar,
   "user_id" bigint REFERENCES users(id) ON DELETE CASCADE,
-  "question_id" bigint REFERENCES questions(id) ON DELETE CASCADE
+  "question_id" bigint REFERENCES questions(id) ON DELETE CASCADE,
+  "solved" boolean DEFAULT (false)
 );`
 
 const CreateAnswerTableQueryTest = `CREATE TABLE IF NOT EXISTS "answers_test" (
@@ -59,7 +60,8 @@ const CreateAnswerTableQueryTest = `CREATE TABLE IF NOT EXISTS "answers_test" (
   "created_at" timestamp DEFAULT (now()),
   "user_name" varchar,
   "user_id" bigint REFERENCES users(id) ON DELETE CASCADE,
-  "question_id" bigint REFERENCES questions(id) ON DELETE CASCADE
+  "question_id" bigint REFERENCES questions(id) ON DELETE CASCADE,
+  "solved" boolean DEFAULT (false)
 );`
 
 const CreateScoreTableQuery = `

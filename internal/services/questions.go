@@ -35,37 +35,11 @@ type QuestionModel struct {
 	UserID      int64  `json:"userId"`
 	ScoreCount  int64  `json:"scoreCount"`
 	AnswerCount int64  `json:"answerCount"`
+	Solved      bool   `json:"solved"`
 }
 
 func (r *Question) GetHandlerForPlural(w http.ResponseWriter, req *http.Request) {
-	// var excludedFields []string
-	//
-	// requestQuery := req.URL.Query()
-	// sortBy := requestQuery.Get("sort_by")
-	// sortDirection := requestQuery.Get("sort_direction")
-	// searchField := requestQuery.Get("search_field")
-	// searchFieldValue := requestQuery.Get("search_field_value")
-	// operator := requestQuery.Get("operator")
-	// limit := requestQuery.Get("limit")
-	//
-	// if _, err := strconv.Atoi(limit); err != nil && len(limit) != 0 {
-	// 	http.Error(w, "Limit is not number", http.StatusBadRequest)
-	//
-	// 	return
-	// }
-	//
-	// if len(sortDirection) != 0 && strings.Compare(sortDirection, "ASC") != 0 && strings.Compare(sortDirection, "DESC") != 0 {
-	// 	http.Error(w, "Sort direction in not ASC or DESC", http.StatusBadRequest)
-	//
-	// 	return
-	// }
-	//
-	// if len(sortDirection) == 0 {
-	// 	sortDirection = "ASC"
-	// }
-
-	// questions, err := GetMany[models.Question](false, "questions", r.db, limit, sortBy, sortDirection, searchField, searchFieldValue, operator, excludedFields)
-	query := `SELECT qs.id,qs.title,qs.description,qs.created_at,us.name,us.id,COUNT(DISTINCT vw.id) as view_count,COUNT(DISTINCT ans.id) as answer_count,COUNT(DISTINCT sc.id) as score_count FROM questions as qs LEFT JOIN "views" as vw ON vw.question_id=qs.id LEFT JOIN users as us ON qs.user_id=us.id LEFT JOIN answers as ans ON ans.question_id=qs.id LEFT JOIN scores as sc ON sc.question_id=qs.id GROUP BY qs.id,us.name,us.id`
+	query := `SELECT qs.id,qs.title,qs.description,qs.created_at,COUNT(DISTINCT CASE WHEN ans.solved THEN 1 ELSE NULL END) as solved,us.name,us.id,COUNT(DISTINCT vw.id) as view_count,COUNT(DISTINCT ans.id) as answer_count,COUNT(DISTINCT sc.id) as score_count FROM questions as qs LEFT JOIN "views" as vw ON vw.question_id=qs.id LEFT JOIN users as us ON qs.user_id=us.id LEFT JOIN answers as ans ON ans.question_id=qs.id LEFT JOIN scores as sc ON sc.question_id=qs.id GROUP BY qs.id,us.name,us.id`
 	rows, err := r.db.Query(query)
 
 	if err != nil {
@@ -80,7 +54,7 @@ func (r *Question) GetHandlerForPlural(w http.ResponseWriter, req *http.Request)
 
 	for rows.Next() {
 		question := QuestionModel{}
-		_ = rows.Scan(&question.ID, &question.Title, &question.Description, &question.CreatedAt, &question.UserName, &question.UserID, &question.ViewCount, &question.AnswerCount, &question.ScoreCount)
+		_ = rows.Scan(&question.ID, &question.Title, &question.Description, &question.CreatedAt, &question.Solved, &question.UserName, &question.UserID, &question.ViewCount, &question.AnswerCount, &question.ScoreCount)
 		questions = append(questions, question)
 	}
 
@@ -123,6 +97,41 @@ func (r *Question) GetViewUpHandler(w http.ResponseWriter, req *http.Request) {
 	_, _ = r.db.Exec(query, id, user.ID)
 
 	return
+}
+
+func (r *Question) GetSolvedHandler(w http.ResponseWriter, req *http.Request) {
+	params := mux.Vars(req)
+	id, err := strconv.Atoi(params["id"])
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	user, _ := utils.GetUserFromRequest(req, w)
+	question, err := r.GetByID(false, int64(id))
+
+	if err != nil {
+		http.Error(w, "", http.StatusBadRequest)
+
+		return
+	}
+
+	if question.UserID != user.ID {
+		http.Error(w, "", http.StatusUnauthorized)
+
+		return
+	}
+
+	question.Solved = true
+	err = r.EditByID(false, int64(id), question)
+
+	if err != nil {
+		http.Error(w, "", http.StatusBadRequest)
+
+		return
+	}
 }
 
 func (r *Question) PostHandler(w http.ResponseWriter, req *http.Request) {
@@ -293,6 +302,7 @@ func (r *Question) RegisterRoutes() {
 	QuestionsRouter.HandleFunc("/", r.GetHandlerForPlural).Methods("GET")
 	QuestionsRouter.HandleFunc("/{id}", r.GetHandler).Methods("GET")
 	QuestionsRouter.HandleFunc("/{id}/view_up", middlewares.LoginGuard(r.GetViewUpHandler)).Methods("GET")
+	QuestionsRouter.HandleFunc("/{id}/solved", middlewares.LoginGuard(r.GetSolvedHandler)).Methods("GET")
 	QuestionsRouter.HandleFunc("/", middlewares.LoginGuard(r.PostHandler)).Methods("POST")
 	QuestionsRouter.HandleFunc("/{id}", r.PatchHandler).Methods("PATCH")
 	QuestionsRouter.HandleFunc("/{id}", r.DeleteHandler).Methods("DELETE")
