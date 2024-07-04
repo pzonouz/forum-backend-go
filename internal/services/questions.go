@@ -2,7 +2,6 @@ package services
 
 import (
 	"database/sql"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -99,41 +98,6 @@ func (r *Question) GetViewUpHandler(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
-func (r *Question) GetSolvedHandler(w http.ResponseWriter, req *http.Request) {
-	params := mux.Vars(req)
-	id, err := strconv.Atoi(params["id"])
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-
-		return
-	}
-
-	user, _ := utils.GetUserFromRequest(req, w)
-	question, err := r.GetByID(false, int64(id))
-
-	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
-
-		return
-	}
-
-	if question.UserID != user.ID {
-		http.Error(w, "", http.StatusUnauthorized)
-
-		return
-	}
-
-	question.Solved = true
-	err = r.EditByID(false, int64(id), question)
-
-	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
-
-		return
-	}
-}
-
 func (r *Question) PostHandler(w http.ResponseWriter, req *http.Request) {
 	question := utils.ReadJSON[models.Question](w, req)
 	if len(question.Title) < 11 {
@@ -155,7 +119,6 @@ func (r *Question) PostHandler(w http.ResponseWriter, req *http.Request) {
 
 	question.UserID = user.ID
 	question.UserName = user.Name
-	log.Printf("%v,%v", question.UserName, user.Name)
 	id, err := r.Create(false, question)
 
 	if err != nil {
@@ -302,7 +265,6 @@ func (r *Question) RegisterRoutes() {
 	QuestionsRouter.HandleFunc("/", r.GetHandlerForPlural).Methods("GET")
 	QuestionsRouter.HandleFunc("/{id}", r.GetHandler).Methods("GET")
 	QuestionsRouter.HandleFunc("/{id}/view_up", middlewares.LoginGuard(r.GetViewUpHandler)).Methods("GET")
-	QuestionsRouter.HandleFunc("/{id}/solved", middlewares.LoginGuard(r.GetSolvedHandler)).Methods("GET")
 	QuestionsRouter.HandleFunc("/", middlewares.LoginGuard(r.PostHandler)).Methods("POST")
 	QuestionsRouter.HandleFunc("/{id}", r.PatchHandler).Methods("PATCH")
 	QuestionsRouter.HandleFunc("/{id}", r.DeleteHandler).Methods("DELETE")

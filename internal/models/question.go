@@ -7,5 +7,4 @@ type Question struct {
 	CreatedAt   string `json:"createdAt" sql:"created_at"`
 	UserName    string `json:"userName" sql:"user_name"`
 	UserID      int64  `json:"userId" sql:"user_id"`
-	Solved      bool   `json:"solved" sql:"solved"`
 }

@@ -158,6 +158,90 @@ func (a *Answer) DeleteHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (a *Answer) GetSolvedHandler(w http.ResponseWriter, req *http.Request) {
+	params := mux.Vars(req)
+	id, err := strconv.Atoi(params["id"])
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	user, _ := utils.GetUserFromRequest(req, w)
+	answer, err := a.GetByID(false, int64(id))
+
+	if err != nil {
+		http.Error(w, "", http.StatusBadRequest)
+
+		return
+	}
+
+	query := `SELECT user_id FROM questions WHERE id=$1;`
+	result := a.db.QueryRow(query, answer.QuestionID)
+	questionUserID := 0
+
+	if result.Err() != nil {
+		http.Error(w, result.Err().Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	err = result.Scan(&questionUserID)
+
+	if err != nil {
+		http.Error(w, result.Err().Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	if int64(questionUserID) != user.ID {
+		http.Error(w, "", http.StatusUnauthorized)
+
+		return
+	}
+
+	if answer.Solved {
+		answer.Solved = false
+		err = a.EditByID(false, int64(id), answer)
+
+		if err != nil {
+			http.Error(w, "", http.StatusBadRequest)
+
+			return
+		}
+
+		return
+	}
+
+	query = `SELECT COUNT(id) FROM answers WHERE question_id=$1 AND solved=true`
+	result = a.db.QueryRow(query, answer.QuestionID)
+
+	countOfSolvedAnswer := 0
+	err = result.Scan(&countOfSolvedAnswer)
+
+	if result.Err() != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	if countOfSolvedAnswer > 0 {
+		http.Error(w, "Solved Before", http.StatusForbidden)
+
+		return
+	}
+
+	answer.Solved = true
+	err = a.EditByID(false, int64(id), answer)
+
+	if err != nil {
+		http.Error(w, "", http.StatusBadRequest)
+
+		return
+	}
+}
+
 // Create implements Service.
 func (a *Answer) Create(isTest bool, answer models.Answer) (int64, error) {
 	var id int64
@@ -200,6 +284,7 @@ func (a *Answer) RegisterRoutes() {
 	AnswersRouter := APIV1Router.PathPrefix("/answers/").Subrouter()
 	AnswersRouter.HandleFunc("/", a.GetHandlerForPlural).Methods("GET")
 	AnswersRouter.HandleFunc("/{id}", a.GetHandler).Methods("GET")
+	AnswersRouter.HandleFunc("/{id}/solved", middlewares.LoginGuard(a.GetSolvedHandler)).Methods("POST")
 	AnswersRouter.HandleFunc("/{question_id}", middlewares.LoginGuard(a.PostHandler)).Methods("POST")
 	AnswersRouter.HandleFunc("/{id}", a.PatchHandler).Methods("PATCH")
 	AnswersRouter.HandleFunc("/{id}", a.DeleteHandler).Methods("DELETE")

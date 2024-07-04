@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -320,7 +319,6 @@ func QueryRowsToStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, ar
 			}
 
 			paramValue := reflect.ValueOf(params[i])
-			log.Printf("%v", paramValue)
 			if paramValue.Kind() == reflect.Ptr {
 				intr := paramValue.Elem().Interface()
 				switch intr.(type) {
@@ -328,6 +326,8 @@ func QueryRowsToStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, ar
 					v.Field(i).SetInt(intr.(int64))
 				case string:
 					v.Field(i).SetString(intr.(string))
+				case bool:
+					v.Field(i).SetBool(intr.(bool))
 				case time.Time:
 					t, ok := intr.(time.Time)
 					if !ok {
@@ -339,6 +339,8 @@ func QueryRowsToStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, ar
 				v.Field(i).SetString(paramValue.String())
 			} else if paramValue.Kind() == reflect.Int64 {
 				v.Field(i).SetInt(paramValue.Int())
+			} else if paramValue.Kind() == reflect.Bool {
+				v.Field(i).SetBool(paramValue.Bool())
 			} else if paramValue.Kind() == reflect.Struct {
 				value, ok := paramValue.Interface().(time.Time)
 				if !ok {
