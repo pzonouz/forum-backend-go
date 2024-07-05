@@ -126,6 +126,34 @@ func (s *Score) PostHandlerForQuestion(w http.ResponseWriter, req *http.Request)
 	user, err := utils.GetUserFromRequest(req, w)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
+
+		return
+	}
+
+	var questionUserID int64
+
+	query := `SELECT user_id FROM questions WHERE id=$1`
+	result := s.db.QueryRow(query, id)
+
+	err = result.Err()
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	err = result.Scan(&questionUserID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	if questionUserID == user.ID {
+		http.Error(w, "Same User", http.StatusBadRequest)
+
+		return
 	}
 
 	scoreNow, err := utils.GetScoreOfUserToQuestion(s.db, user.ID, int64(intID))
@@ -155,7 +183,7 @@ func (s *Score) PostHandlerForQuestion(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	query := `INSERT INTO scores (operator,question_id,user_id) VALUES($1,$2,$3);`
+	query = `INSERT INTO scores (operator,question_id,user_id) VALUES($1,$2,$3);`
 	stmt, err := s.db.Prepare(query)
 
 	if err != nil {
@@ -187,6 +215,34 @@ func (s *Score) PostHandlerForAnswer(w http.ResponseWriter, req *http.Request) {
 	user, err := utils.GetUserFromRequest(req, w)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	var answerUserID int64
+
+	query := `SELECT user_id FROM answers WHERE id=$1`
+	result := s.db.QueryRow(query, id)
+
+	err = result.Err()
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	err = result.Scan(&answerUserID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	if answerUserID == user.ID {
+		http.Error(w, "Same User", http.StatusBadRequest)
+
+		return
 	}
 
 	scoreNow, err := utils.GetScoreOfUserToAnswer(s.db, user.ID, int64(intID))
@@ -216,7 +272,7 @@ func (s *Score) PostHandlerForAnswer(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	query := `INSERT INTO scores (operator,answer_id,user_id) VALUES($1,$2,$3);`
+	query = `INSERT INTO scores (operator,answer_id,user_id) VALUES($1,$2,$3);`
 	stmt, err := s.db.Prepare(query)
 
 	if err != nil {
