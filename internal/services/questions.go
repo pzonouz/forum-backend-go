@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -38,7 +39,28 @@ type QuestionModel struct {
 }
 
 func (r *Question) GetHandlerForPlural(w http.ResponseWriter, req *http.Request) {
+	orderBy := req.URL.Query().Get("order_by")
+	orderDirection := req.URL.Query().Get("order_direction")
+	searchFiled := req.URL.Query().Get("search_field")
+	searchFiledValue := req.URL.Query().Get("search_field_value")
 	query := `SELECT qs.id,qs.title,qs.description,qs.created_at,COUNT(DISTINCT CASE WHEN ans.solved THEN 1 ELSE NULL END) as solved,us.name,us.id,COUNT(DISTINCT vw.id) as view_count,COUNT(DISTINCT ans.id) as answer_count,COUNT(DISTINCT sc.id) as score_count FROM questions as qs LEFT JOIN "views" as vw ON vw.question_id=qs.id LEFT JOIN users as us ON qs.user_id=us.id LEFT JOIN answers as ans ON ans.question_id=qs.id LEFT JOIN scores as sc ON sc.question_id=qs.id GROUP BY qs.id,us.name,us.id`
+
+	if strings.Compare(searchFiled, "") != 0 {
+		query = `SELECT * FROM (` + query
+		query = query + `) WHERE ` + searchFiled + searchFiledValue
+	}
+
+	if strings.Compare(orderBy, "") != 0 {
+		query = query + ` ORDER BY ` + orderBy
+		if strings.Compare(orderDirection, "") == 0 {
+			query = query + ` ASC`
+		}
+
+		if strings.Compare(orderDirection, "DESC") == 0 {
+			query = query + ` DESC`
+		}
+	}
+
 	rows, err := r.db.Query(query)
 
 	if err != nil {
@@ -266,6 +288,6 @@ func (r *Question) RegisterRoutes() {
 	QuestionsRouter.HandleFunc("/{id}", r.GetHandler).Methods("GET")
 	QuestionsRouter.HandleFunc("/{id}/view_up", middlewares.LoginGuard(r.GetViewUpHandler)).Methods("GET")
 	QuestionsRouter.HandleFunc("/", middlewares.LoginGuard(r.PostHandler)).Methods("POST")
-	QuestionsRouter.HandleFunc("/{id}", r.PatchHandler).Methods("PATCH")
-	QuestionsRouter.HandleFunc("/{id}", r.DeleteHandler).Methods("DELETE")
+	QuestionsRouter.HandleFunc("/{id}", middlewares.LoginGuard(r.PatchHandler)).Methods("PATCH")
+	QuestionsRouter.HandleFunc("/{id}", middlewares.LoginGuard(r.DeleteHandler)).Methods("DELETE")
 }
