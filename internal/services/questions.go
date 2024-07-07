@@ -43,7 +43,7 @@ func (r *Question) GetHandlerForPlural(w http.ResponseWriter, req *http.Request)
 	orderDirection := req.URL.Query().Get("order_direction")
 	searchFiled := req.URL.Query().Get("search_field")
 	searchFiledValue := req.URL.Query().Get("search_field_value")
-	query := `SELECT qs.id,qs.title,qs.description,qs.created_at,COUNT(DISTINCT CASE WHEN ans.solved THEN 1 ELSE NULL END) as solved,us.name,us.id,COUNT(DISTINCT vw.id) as view_count,COUNT(DISTINCT ans.id) as answer_count,COUNT(DISTINCT sc.id) as score_count FROM questions as qs LEFT JOIN "views" as vw ON vw.question_id=qs.id LEFT JOIN users as us ON qs.user_id=us.id LEFT JOIN answers as ans ON ans.question_id=qs.id LEFT JOIN scores as sc ON sc.question_id=qs.id GROUP BY qs.id,us.name,us.id`
+	query := `SELECT qs.id,qs.title,qs.description,qs.created_at,COUNT(DISTINCT CASE WHEN ans.solved THEN 1 ELSE NULL END) as solved,us.nickname,us.id,COUNT(DISTINCT vw.id) as view_count,COUNT(DISTINCT ans.id) as answer_count,COUNT(DISTINCT sc.id) as score_count FROM questions as qs LEFT JOIN "views" as vw ON vw.question_id=qs.id LEFT JOIN users as us ON qs.user_id=us.id LEFT JOIN answers as ans ON ans.question_id=qs.id LEFT JOIN scores as sc ON sc.question_id=qs.id GROUP BY qs.id,us.nickname,us.id`
 
 	if strings.Compare(searchFiled, "") != 0 {
 		query = `SELECT * FROM (` + query
@@ -79,6 +79,24 @@ func (r *Question) GetHandlerForPlural(w http.ResponseWriter, req *http.Request)
 		questions = append(questions, question)
 	}
 
+	utils.WriteJSON(w, questions)
+}
+
+func (r *Question) GetHandlerForPluralOfQuestions(w http.ResponseWriter, req *http.Request) {
+	user, err := utils.GetUserFromRequest(req, w)
+	if err != nil {
+		http.Error(w, "", http.StatusUnauthorized)
+
+		return
+	}
+
+	query := `SELECT * FROM questions WHERE user_id=$1`
+	stmt, err := r.db.Prepare(query)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	questions, err := QueryRowsToStruct[models.Question](stmt, nil, user.ID)
 	utils.WriteJSON(w, questions)
 }
 
@@ -140,7 +158,7 @@ func (r *Question) PostHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	question.UserID = user.ID
-	question.UserName = user.Name
+	question.UserName = user.NickName
 	id, err := r.Create(false, question)
 
 	if err != nil {
@@ -285,6 +303,7 @@ func (r *Question) RegisterRoutes() {
 	APIV1Router := router.PathPrefix("/api/v1/").Subrouter()
 	QuestionsRouter := APIV1Router.PathPrefix("/questions/").Subrouter()
 	QuestionsRouter.HandleFunc("/", r.GetHandlerForPlural).Methods("GET")
+	QuestionsRouter.HandleFunc("/current_user", middlewares.LoginGuard(r.GetHandlerForPluralOfQuestions)).Methods("GET")
 	QuestionsRouter.HandleFunc("/{id}", r.GetHandler).Methods("GET")
 	QuestionsRouter.HandleFunc("/{id}/view_up", middlewares.LoginGuard(r.GetViewUpHandler)).Methods("GET")
 	QuestionsRouter.HandleFunc("/", middlewares.LoginGuard(r.PostHandler)).Methods("POST")

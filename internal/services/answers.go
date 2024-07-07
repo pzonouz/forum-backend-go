@@ -107,7 +107,7 @@ func (a *Answer) PostHandler(w http.ResponseWriter, req *http.Request) {
 
 	answer.QuestionID = int64(questionId)
 	answer.UserID = user.ID
-	answer.UserName = user.Name
+	answer.UserName = user.NickName
 	id, err := a.Create(false, answer)
 
 	if err != nil {

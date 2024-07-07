@@ -2,7 +2,10 @@ package services
 
 import (
 	"database/sql"
+	"io"
+	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -173,7 +176,7 @@ func (u *UserService) GetHandlerForPlural(w http.ResponseWriter, r *http.Request
 }
 
 // PatchHandler implements Service.
-func (u *UserService) PatchHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserService) PatchHandlerAdmin(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	user := utils.ReadJSON[models.User](w, r)
 	ID, err := strconv.Atoi(id)
@@ -183,6 +186,23 @@ func (u *UserService) PatchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = u.EditByID(false, int64(ID), user)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+}
+
+func (u *UserService) PatchHandler(w http.ResponseWriter, r *http.Request) {
+	currentUser, err := utils.GetUserFromRequest(r, w)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+
+		return
+	}
+
+	user := utils.ReadJSON[models.User](w, r)
+
+	err = u.EditByID(false, currentUser.ID, user)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -217,6 +237,22 @@ func (u *UserService) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, &data{ID: id})
 }
 
+func (u *UserService) IsUniqueEmailHandler(w http.ResponseWriter, r *http.Request) {
+	user := utils.ReadJSON[models.User](w, r)
+	currentUser, _ := Get[models.User](false, "users", u.db, "email", user.Email, nil)
+	if len(currentUser.Email) > 0 {
+		http.Error(w, "", http.StatusBadRequest)
+	}
+}
+
+func (u *UserService) IsUniqueNickNameHandler(w http.ResponseWriter, r *http.Request) {
+	user := utils.ReadJSON[models.User](w, r)
+	currentUser, _ := Get[models.User](false, "users", u.db, "nickname", user.NickName, nil)
+	if len(currentUser.NickName) > 0 {
+		http.Error(w, "", http.StatusBadRequest)
+	}
+}
+
 func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	userJSON := utils.ReadJSON[models.User](w, r)
 
@@ -235,10 +271,10 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	expired := time.Now().Add(time.Hour * 24)
+	expired := time.Now().Add(time.Hour * 24 * 365 * 5)
 	token := jwt.NewWithClaims(
 		jwt.SigningMethodHS256,
-		utils.MyClaims{ID: user.ID, Expired: expired.Unix(), Role: user.Role, Name: user.Name, Email: user.Email},
+		utils.MyClaims{ID: user.ID, Expired: expired.Unix(), Role: user.Role, NickName: user.NickName, Email: user.Email},
 	)
 	signedToken, err := token.SignedString([]byte("secret"))
 
@@ -266,16 +302,74 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, &data{Access: signedToken})
 }
 
+func (u *UserService) LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	cookie := http.Cookie{
+		Path:     "/",
+		Name:     "access",
+		Value:    "",
+		MaxAge:   -1,
+		HttpOnly: true,
+		// SameSite: http.SameSiteLaxMode,
+		// Domain:   "",
+	}
+	http.SetCookie(w, &cookie)
+}
+
+func (u *UserService) GetGoogleOauthLinkHandler(w http.ResponseWriter, r *http.Request) {
+	link := `https://accounts.google.com/o/oauth2/v2/auth?scope=https%3A//www.googleapis.com/auth/userinfo.profile&access_type=offline&include_granted_scopes=true&response_type=code&redirect_uri=http%3A//localhost/api/v1/users/google-callback&client_id=540094082819-cvffsbg31rcsva57f0fne7urqt34d6ur.apps.googleusercontent.com`
+
+	type data struct {
+		Link string `json:"link"`
+	}
+
+	utils.WriteJSON(w, &data{Link: link})
+}
+
+func (u *UserService) GooleCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("code")
+	authorizationExchangeUrl := "https://oauth2.googleapis.com/token"
+	resp, err := http.PostForm(authorizationExchangeUrl, url.Values{"client_id": {"540094082819-cvffsbg31rcsva57f0fne7urqt34d6ur.apps.googleusercontent.com"}, "client_secret": {"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"}, "code": {code}, "grant_type": {"authorization_code"}, "redirect_uri": {"https%3A//localhost/api/v1/users/google-callback"}})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	data, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	defer resp.Body.Close()
+
+	log.Printf("%v", string(data))
+
+	type output struct {
+		Data string `json:data`
+	}
+	utils.WriteJSON(w, &output{Data: string(data)})
+}
+
 // registerRoutes implements Service.
 func (u *UserService) RegisterRoutes() {
 	router := u.router
 	APIV1Router := router.PathPrefix("/api/v1/").Subrouter()
 	UsersRouter := APIV1Router.PathPrefix("/users/").Subrouter()
-	UsersRouter.HandleFunc("/get_all/", middlewares.AdminRoleGuard(u.GetHandlerForPlural)).Methods("GET")
+	UsersRouter.HandleFunc("/get_all/", u.GetHandlerForPlural).Methods("GET")
 	UsersRouter.HandleFunc("/", middlewares.LoginGuard(u.GetHandler)).Methods("GET")
 	UsersRouter.HandleFunc("/get_by_id/{id}", u.GetByIDHandler).Methods("GET")
+	UsersRouter.HandleFunc("/google-callback", u.GooleCallbackHandler).Methods("GET")
 	UsersRouter.HandleFunc("/register", u.RegisterHandler).Methods("POST")
+	UsersRouter.HandleFunc("/is_unique_email", u.IsUniqueEmailHandler).Methods("POST")
+	UsersRouter.HandleFunc("/is_unique_nickname", u.IsUniqueNickNameHandler).Methods("POST")
 	UsersRouter.HandleFunc("/login", u.LoginHandler).Methods("POST")
-	UsersRouter.HandleFunc("/{id}", u.PatchHandler).Methods("PATCH")
+	UsersRouter.HandleFunc("/{id}", middlewares.AdminRoleGuard(u.PatchHandler)).Methods("PATCH")
+	UsersRouter.HandleFunc("/", middlewares.LoginGuard(u.PatchHandler)).Methods("PATCH")
+	UsersRouter.HandleFunc("/logout", middlewares.LoginGuard(u.LogoutHandler)).Methods("GET")
+	UsersRouter.HandleFunc("/get_google_oauth_link", u.GetGoogleOauthLinkHandler).Methods("GET")
 	UsersRouter.HandleFunc("/{id}", middlewares.AdminRoleGuard(u.DeleteHandler)).Methods("DELETE")
 }

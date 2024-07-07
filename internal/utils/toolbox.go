@@ -38,7 +38,7 @@ type MyClaims struct {
 	ID          int64
 	Email       string
 	Address     string
-	Name        string
+	NickName    string
 	PhoneNumber string
 	Role        string
 	Expired     int64

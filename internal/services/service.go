@@ -278,8 +278,16 @@ func QueryRowsToStruct[T any](stmt *sql.Stmt, excludedFieldsOfModel []string, ar
 
 	rows, err = stmt.Query(args...)
 
+	if err != nil {
+		return objects, err
+	}
+
 	if rows.Err() != nil {
 		return objects, rows.Err()
+	}
+
+	if rows == nil {
+		return objects, nil
 	}
 
 	if err != nil {
