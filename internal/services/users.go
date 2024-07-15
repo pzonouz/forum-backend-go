@@ -372,9 +372,13 @@ func (u *UserService) ForgetPasswordHandler(w http.ResponseWriter, r *http.Reque
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	_, err = result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if rowsAffected == 0 {
+		http.Error(w, "No Email", http.StatusBadRequest)
 		return
 	}
 	gmailUsername := utils.GetEnv("GMAIL_USERNAME", "p.zonouz@gmail.com")
@@ -382,9 +386,8 @@ func (u *UserService) ForgetPasswordHandler(w http.ResponseWriter, r *http.Reque
 	gmailPort := utils.GetEnv("GMAIL_PORT", "587")
 	gmailAddress := utils.GetEnv("GMAIL_SMTP_ADDRESS", "smtp.gmail.com")
 	gmailAuth := smtp.PlainAuth("", gmailUsername, gmailPassword, gmailAddress)
-	from := utils.GetEnv("GMAIL_FROM", "p.zonouz@gmail.com")
+	from := utils.GetEnv("GMAIL_FROM", "ICEF")
 	to := []string{email}
-	// message := `<a href="https://yahoo.com">برای تغییر پسورد کلیک کنید</a>`
 	t, err := template.ParseFiles("../../internal/services/template.html")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -399,7 +402,7 @@ func (u *UserService) ForgetPasswordHandler(w http.ResponseWriter, r *http.Reque
 	t.Execute(&body, struct {
 		Address string
 	}{
-		Address: `https://localhost/api/v1/users/forget_password_callback/` + tokenString})
+		Address: `https://localhost/users/forget_password_callback/` + tokenString})
 
 	err = smtp.SendMail(gmailAddress+":"+gmailPort, gmailAuth, from, to, body.Bytes())
 	if err != nil {
@@ -410,7 +413,7 @@ func (u *UserService) ForgetPasswordHandler(w http.ResponseWriter, r *http.Reque
 func (u *UserService) ForgetPasswordCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	token := mux.Vars(r)["token"]
 	data := utils.ReadJSON[models.User](w, r)
-	if len(data.Password) < 9 {
+	if len(data.Password) < 6 {
 		http.Error(w, "Password length", http.StatusBadRequest)
 	}
 	encryptedPassword, err := bcrypt.GenerateFromPassword([]byte(data.Password), 3)
@@ -421,30 +424,32 @@ func (u *UserService) ForgetPasswordCallbackHandler(w http.ResponseWriter, r *ht
 		return
 	}
 	query := `UPDATE users SET password=$1 WHERE token=$2 AND is_forget_password=true`
-	tx, err := u.db.BeginTx(context.Background(), &sql.TxOptions{})
+	tx, err := u.db.BeginTx(context.Background(), nil)
+	defer tx.Rollback()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
-	result, err := tx.Exec(query, data.Password, token)
+	result, err := tx.ExecContext(context.Background(), query, data.Password, token)
 	if err == nil {
 		rowsCount, _ := result.RowsAffected()
 		if rowsCount == 0 {
-			_ = tx.Rollback()
-			http.Error(w, "", http.StatusBadRequest)
+			http.Error(w, "Token is wrong", http.StatusBadRequest)
+			return
 		}
 	}
 	query = `UPDATE users SET is_forget_password=false,password=$1 WHERE token=$2`
-	result, err = tx.Exec(query, encryptedPassword, token)
+	result, err = tx.ExecContext(context.Background(), query, encryptedPassword, token)
 	if err == nil {
 		rowsCount, _ := result.RowsAffected()
 		if rowsCount == 0 {
-			_ = tx.Rollback()
 			http.Error(w, "", http.StatusBadRequest)
+			return
 		}
 	}
 	err = tx.Commit()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 }
 
