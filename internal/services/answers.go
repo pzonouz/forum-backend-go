@@ -63,6 +63,24 @@ func (a *Answer) GetHandlerForPlural(w http.ResponseWriter, req *http.Request) {
 	utils.WriteJSON(w, answers)
 }
 
+func (a *Answer) GetHandlerForPluralOfAnswers(w http.ResponseWriter, req *http.Request) {
+	user, err := utils.GetUserFromRequest(req, w)
+	if err != nil {
+		http.Error(w, "", http.StatusUnauthorized)
+
+		return
+	}
+
+	query := `SELECT * FROM answers WHERE user_id=$1`
+	stmt, err := a.db.Prepare(query)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	answers, err := QueryRowsToStruct[models.Answer](stmt, nil, user.ID)
+	utils.WriteJSON(w, answers)
+}
+
 func (a *Answer) GetHandler(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	id, err := strconv.Atoi(params["id"])
@@ -283,6 +301,7 @@ func (a *Answer) RegisterRoutes() {
 	APIV1Router := router.PathPrefix("/api/v1/").Subrouter()
 	AnswersRouter := APIV1Router.PathPrefix("/answers/").Subrouter()
 	AnswersRouter.HandleFunc("/", a.GetHandlerForPlural).Methods("GET")
+	AnswersRouter.HandleFunc("/current_user", a.GetHandlerForPluralOfAnswers).Methods("GET")
 	AnswersRouter.HandleFunc("/{id}", a.GetHandler).Methods("GET")
 	AnswersRouter.HandleFunc("/{id}/solved", middlewares.LoginGuard(a.GetSolvedHandler)).Methods("POST")
 	AnswersRouter.HandleFunc("/{question_id}", middlewares.LoginGuard(a.PostHandler)).Methods("POST")

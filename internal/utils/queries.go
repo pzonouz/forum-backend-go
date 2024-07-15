@@ -1,7 +1,7 @@
 package utils
 
 const CreateUserTableQuery = `
-  -- CREATE TYPE roleType as ENUM('admin','user','owner','modifier');
+  --CREATE TYPE roleType as ENUM('admin','user','owner','modifier');
   CREATE TABLE IF NOT EXISTS users (
   id bigserial PRIMARY KEY,
   email varchar UNIQUE NOT NULL,
@@ -10,11 +10,13 @@ const CreateUserTableQuery = `
   address text,
   phone_number varchar, 
   role roleType NOT NULL DEFAULT 'user',
-  created_at timestamp DEFAULT (now())
+  created_at timestamp DEFAULT (now()),
+  token varchar,
+  is_forget_password boolean DEFAULT(false)
 );`
 
 const CreateUserTableQueryTest = `
--- CREATE TYPE roleType as ENUM('admin','user','owner','modifier');
+  --CREATE TYPE roleType as ENUM('admin','user','owner','modifier');
   CREATE TABLE IF NOT EXISTS "users_test" (
   "id" bigserial PRIMARY KEY,
   "email" varchar UNIQUE,
@@ -23,7 +25,10 @@ const CreateUserTableQueryTest = `
   "address" text,
   "phone_number" varchar,
   role roleType NOT NULL DEFAULT 'user',
-  "created_at" timestamp DEFAULT (now())
+  "created_at" timestamp DEFAULT (now()),
+  token varchar,
+  is_forget_password boolean DEFAULT(false)
+
 );`
 
 const CreateQuestionTableQuery = `CREATE TABLE IF NOT EXISTS "questions" (

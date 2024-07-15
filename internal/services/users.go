@@ -1,16 +1,22 @@
 package services
 
 import (
+	"bytes"
+	"context"
 	"database/sql"
+	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
+	"net/smtp"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 
@@ -219,9 +225,7 @@ func (u *UserService) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-
 	user.Password = string(encryptedPassword)
-
 	id, err := u.Create(false, user)
 
 	if err != nil {
@@ -239,23 +243,27 @@ func (u *UserService) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 func (u *UserService) IsUniqueEmailHandler(w http.ResponseWriter, r *http.Request) {
 	user := utils.ReadJSON[models.User](w, r)
+	userFromReqest, _ := utils.GetUserFromRequest(r, w)
 	currentUser, _ := Get[models.User](false, "users", u.db, "email", user.Email, nil)
-	if len(currentUser.Email) > 0 {
+	if len(currentUser.Email) > 0 && currentUser.Email != userFromReqest.Email {
 		http.Error(w, "", http.StatusBadRequest)
 	}
 }
 
 func (u *UserService) IsUniqueNickNameHandler(w http.ResponseWriter, r *http.Request) {
 	user := utils.ReadJSON[models.User](w, r)
-	currentUser, _ := Get[models.User](false, "users", u.db, "nickname", user.NickName, nil)
-	if len(currentUser.NickName) > 0 {
+	userFromReqest, _ := utils.GetUserFromRequest(r, w)
+	currentUser, _ := Get[models.User](false, "users", u.db, "nickName", user.NickName, nil)
+	if len(currentUser.NickName) > 0 && currentUser.NickName != userFromReqest.NickName {
 		http.Error(w, "", http.StatusBadRequest)
 	}
+
 }
 
 func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	userJSON := utils.ReadJSON[models.User](w, r)
 
+	print(userJSON.Password)
 	var excludedFields []string
 	user, err := Get[models.User](false, "users", u.db, "email", userJSON.Email, excludedFields)
 
@@ -316,7 +324,7 @@ func (u *UserService) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (u *UserService) GetGoogleOauthLinkHandler(w http.ResponseWriter, r *http.Request) {
-	link := `https://accounts.google.com/o/oauth2/v2/auth?scope=https%3A//www.googleapis.com/auth/userinfo.profile&access_type=offline&include_granted_scopes=true&response_type=code&redirect_uri=http%3A//localhost/api/v1/users/google-callback&client_id=540094082819-cvffsbg31rcsva57f0fne7urqt34d6ur.apps.googleusercontent.com`
+	link := `https://accounts.google.com/o/oauth2/v2/auth?scope=https://www.googleapis.com/auth/userinfo.email+https://www.googleapis.com/auth/userinfo.profile+openid&access_type=offline&include_granted_scopes=true&response_type=code&redirect_uri=https%3A//localhost/api/v1/users/google-callback&client_id=540094082819-cvffsbg31rcsva57f0fne7urqt34d6ur.apps.googleusercontent.com`
 
 	type data struct {
 		Link string `json:"link"`
@@ -354,6 +362,92 @@ func (u *UserService) GooleCallbackHandler(w http.ResponseWriter, r *http.Reques
 	utils.WriteJSON(w, &output{Data: string(data)})
 }
 
+func (u *UserService) ForgetPasswordHandler(w http.ResponseWriter, r *http.Request) {
+	email := mux.Vars(r)["email"]
+	token := uuid.New()
+	tokenString := strings.ReplaceAll(string(token.String()), "-", "")
+	query := `UPDATE users SET is_forget_password=true,token='` + tokenString + `' WHERE email=$1`
+	result, err := u.db.Exec(query, email)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	_, err = result.RowsAffected()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	gmailUsername := utils.GetEnv("GMAIL_USERNAME", "p.zonouz@gmail.com")
+	gmailPassword := utils.GetEnv("GMAIL_PASSWORD", "egfu usxu dcmv xblu")
+	gmailPort := utils.GetEnv("GMAIL_PORT", "587")
+	gmailAddress := utils.GetEnv("GMAIL_SMTP_ADDRESS", "smtp.gmail.com")
+	gmailAuth := smtp.PlainAuth("", gmailUsername, gmailPassword, gmailAddress)
+	from := utils.GetEnv("GMAIL_FROM", "p.zonouz@gmail.com")
+	to := []string{email}
+	// message := `<a href="https://yahoo.com">برای تغییر پسورد کلیک کنید</a>`
+	t, err := template.ParseFiles("../../internal/services/template.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var body bytes.Buffer
+
+	mimeHeaders := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
+	body.Write([]byte(fmt.Sprintf("Subject: ایمیل تغییر پسورد \n%s\n\n", mimeHeaders)))
+
+	t.Execute(&body, struct {
+		Address string
+	}{
+		Address: `https://localhost/api/v1/users/forget_password_callback/` + tokenString})
+
+	err = smtp.SendMail(gmailAddress+":"+gmailPort, gmailAuth, from, to, body.Bytes())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+}
+
+func (u *UserService) ForgetPasswordCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	token := mux.Vars(r)["token"]
+	data := utils.ReadJSON[models.User](w, r)
+	if len(data.Password) < 9 {
+		http.Error(w, "Password length", http.StatusBadRequest)
+	}
+	encryptedPassword, err := bcrypt.GenerateFromPassword([]byte(data.Password), 3)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+	query := `UPDATE users SET password=$1 WHERE token=$2 AND is_forget_password=true`
+	tx, err := u.db.BeginTx(context.Background(), &sql.TxOptions{})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	result, err := tx.Exec(query, data.Password, token)
+	if err == nil {
+		rowsCount, _ := result.RowsAffected()
+		if rowsCount == 0 {
+			_ = tx.Rollback()
+			http.Error(w, "", http.StatusBadRequest)
+		}
+	}
+	query = `UPDATE users SET is_forget_password=false,password=$1 WHERE token=$2`
+	result, err = tx.Exec(query, encryptedPassword, token)
+	if err == nil {
+		rowsCount, _ := result.RowsAffected()
+		if rowsCount == 0 {
+			_ = tx.Rollback()
+			http.Error(w, "", http.StatusBadRequest)
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+}
+
 // registerRoutes implements Service.
 func (u *UserService) RegisterRoutes() {
 	router := u.router
@@ -372,4 +466,6 @@ func (u *UserService) RegisterRoutes() {
 	UsersRouter.HandleFunc("/logout", middlewares.LoginGuard(u.LogoutHandler)).Methods("GET")
 	UsersRouter.HandleFunc("/get_google_oauth_link", u.GetGoogleOauthLinkHandler).Methods("GET")
 	UsersRouter.HandleFunc("/{id}", middlewares.AdminRoleGuard(u.DeleteHandler)).Methods("DELETE")
+	UsersRouter.HandleFunc("/forget_password/{email}", u.ForgetPasswordHandler).Methods("GET")
+	UsersRouter.HandleFunc("/forget_password_callback/{token}/", u.ForgetPasswordCallbackHandler).Methods("POST")
 }
