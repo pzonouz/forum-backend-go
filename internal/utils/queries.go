@@ -91,6 +91,14 @@ const CreateScoreTableQueryTest = `
   "answer_id" bigint REFERENCES answers(id) ON DELETE CASCADE
   );`
 
+const CreateFileTableQuery = `
+  CREATE TABLE IF NOT EXISTS files (
+  id bigserial PRIMARY KEY,
+  name varchar UNIQUE NOT NULL,
+  location text,
+  created_at timestamp DEFAULT (now())
+);`
+
 const CreateViewTableQuery = `CREATE TABLE IF NOT EXISTS "views" (
   "id" bigserial PRIMARY KEY,
   "question_id" bigint REFERENCES questions(id) ON DELETE CASCADE,

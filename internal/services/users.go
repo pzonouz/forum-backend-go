@@ -402,7 +402,7 @@ func (u *UserService) ForgetPasswordHandler(w http.ResponseWriter, r *http.Reque
 	t.Execute(&body, struct {
 		Address string
 	}{
-		Address: `https://localhost/users/forget_password_callback/` + tokenString})
+		Address: `http://localhost/users/forget_password_callback/` + tokenString})
 
 	err = smtp.SendMail(gmailAddress+":"+gmailPort, gmailAuth, from, to, body.Bytes())
 	if err != nil {
@@ -468,7 +468,7 @@ func (u *UserService) RegisterRoutes() {
 	UsersRouter.HandleFunc("/login", u.LoginHandler).Methods("POST")
 	UsersRouter.HandleFunc("/{id}", middlewares.AdminRoleGuard(u.PatchHandler)).Methods("PATCH")
 	UsersRouter.HandleFunc("/", middlewares.LoginGuard(u.PatchHandler)).Methods("PATCH")
-	UsersRouter.HandleFunc("/logout", middlewares.LoginGuard(u.LogoutHandler)).Methods("GET")
+	UsersRouter.HandleFunc("/logout/", middlewares.LoginGuard(u.LogoutHandler)).Methods("GET")
 	UsersRouter.HandleFunc("/get_google_oauth_link", u.GetGoogleOauthLinkHandler).Methods("GET")
 	UsersRouter.HandleFunc("/{id}", middlewares.AdminRoleGuard(u.DeleteHandler)).Methods("DELETE")
 	UsersRouter.HandleFunc("/forget_password/{email}", u.ForgetPasswordHandler).Methods("GET")

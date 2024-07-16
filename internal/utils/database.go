@@ -25,7 +25,9 @@ func (d *database) RunQueryOnDB(query string) error {
 }
 
 func NewDatabase() *database {
-	dsn := GetEnv("dsn", "host=localhost port=5432 user=root password=secret dbname=forum_go sslmode=disable")
+	// dsn := GetEnv("dsn", "host=localhost port=5432 user=root password=secret dbname=forum_go sslmode=disable")
+	// postgresql: //user:password@host:port/database
+	dsn := GetEnv("dsn", "postgres://default:3jo2HqFvzPNW@ep-curly-shadow-a4o28ygc-pooler.us-east-1.aws.neon.tech:5432/verceldb?sslmode=require")
 	conn, err := sql.Open("pgx", dsn)
 
 	if err != nil {
@@ -96,6 +98,12 @@ func (d *database) GetDB(isTest bool) (*sql.DB, error) {
 	}
 
 	err = d.RunQueryOnDB(CreateViewTableQuery)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = d.RunQueryOnDB(CreateFileTableQuery)
 
 	if err != nil {
 		return nil, err
