@@ -93,10 +93,13 @@ const CreateScoreTableQueryTest = `
 
 const CreateFileTableQuery = `
   CREATE TABLE IF NOT EXISTS files (
-  id bigserial PRIMARY KEY,
-  name varchar UNIQUE NOT NULL,
-  location text,
-  created_at timestamp DEFAULT (now())
+  "id" bigserial PRIMARY KEY,
+  "name" varchar UNIQUE,
+  "filename" text,
+  "created_at" timestamp DEFAULT (now()),
+  "user_id" bigint REFERENCES users(id),
+  "answer_id" bigint REFERENCES answers(id),  
+  "question_id" bigint REFERENCES questions(id)  
 );`
 
 const CreateViewTableQuery = `CREATE TABLE IF NOT EXISTS "views" (

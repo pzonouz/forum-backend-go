@@ -1,7 +1,9 @@
 package services
 
 import (
+	"context"
 	"database/sql"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -139,7 +141,18 @@ func (r *Question) GetViewUpHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Question) PostHandler(w http.ResponseWriter, req *http.Request) {
-	question := utils.ReadJSON[models.Question](w, req)
+	type Question struct {
+		ID          int64         `json:"id" sql:"id"`
+		Title       string        `json:"title" sql:"title"`
+		Description string        `json:"description" sql:"description"`
+		CreatedAt   string        `json:"createdAt" sql:"created_at"`
+		UserName    string        `json:"userName" sql:"user_name"`
+		UserID      int64         `json:"userId" sql:"user_id"`
+		Files       []models.File `json:"files"`
+	}
+
+	question := utils.ReadJSON[Question](w, req)
+	files := question.Files
 	if len(question.Title) < 11 {
 		http.Error(w, "At least 10 character for title", http.StatusBadRequest)
 
@@ -159,12 +172,50 @@ func (r *Question) PostHandler(w http.ResponseWriter, req *http.Request) {
 
 	question.UserID = user.ID
 	question.UserName = user.NickName
-	id, err := r.Create(false, question)
+
+	question2 := &models.Question{
+		Title:       question.Title,
+		Description: question.Description,
+		UserID:      question.UserID,
+		UserName:    question.UserName,
+	}
+
+	tx, err := r.db.BeginTx(context.Background(), nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer tx.Rollback()
+
+	var id int64
+	query := `INSERT INTO questions(title,description,user_name,user_id) VALUES($1,$2,$3,$4) RETURNING "id"`
+	err = tx.QueryRow(query, question2.Title, question2.Description, question2.UserName, question2.UserID).Scan(&id)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+	query = `UPDATE files SET question_id=$1 WHERE id=$2`
+	for _, value := range files {
+		log.Printf("file id:%v", value.ID)
+		log.Printf("question id:%v", id)
+		result, err := tx.Exec(query, id, value.ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		rows, err := result.RowsAffected()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if rows == 0 {
+			http.Error(w, "0 rows affected", http.StatusBadRequest)
 
+			return
+		}
+	}
+	tx.Commit()
 	type data struct {
 		ID int64 `json:"id"`
 	}

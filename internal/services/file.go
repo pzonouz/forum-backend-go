@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -58,20 +59,31 @@ func (r *File) GetHandler(w http.ResponseWriter, req *http.Request) {
 	utils.WriteJSON(w, file)
 }
 
+func (r *File) DownloadHandler(w http.ResponseWriter, req *http.Request) {
+	filename := mux.Vars(req)["filename"]
+	file, err := os.Open("../../uploads/" + filename)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	http.ServeContent(w, req, filename, time.Now(), file)
+}
+
 func (r *File) UploadHandler(w http.ResponseWriter, req *http.Request) {
 	err := req.ParseMultipartForm(2 << 20)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	file, _, err := req.FormFile("file")
+	file, handler, err := req.FormFile("file")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
+	tempString := strings.Split(handler.Filename, ".")
+	extension := tempString[len(tempString)-1]
 	random := strings.ReplaceAll(uuid.New().String(), "-", "")
-	dst, err := os.Create("../../uploads/" + random)
+	dst, err := os.Create("../../uploads/" + random + "." + extension)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -84,21 +96,16 @@ func (r *File) UploadHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	type data struct {
-		Location string `json:"location"`
+		ID       int64  `json:"id"`
+		Filename string `json:"filename"`
 	}
-	utils.WriteJSON(w, &data{Location: "uploads/" + random})
-
-	// id, err := r.Create(false, file)
-
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	// }
-	//
-	// type data struct {
-	// 	ID int64 `json:"id"`
-	// }
-	//
-	// utils.WriteJSON(w, &data{ID: id})
+	user, _ := utils.GetUserFromRequest(req, w)
+	NewFile := &models.File{FileName: random + "." + extension, UserID: user.ID}
+	id, err := r.Create(false, *NewFile)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	utils.WriteJSON(w, &data{Filename: random + "." + extension, ID: id})
 }
 
 func (r *File) PostHandler(w http.ResponseWriter, req *http.Request) {
@@ -168,7 +175,7 @@ func (r *File) DeleteHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = r.GetByID(false, int64(id))
+	file, err := r.GetByID(false, int64(id))
 
 	if err != nil {
 		http.Error(w, "not Found", http.StatusBadRequest)
@@ -184,14 +191,14 @@ func (r *File) DeleteHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if user.Role != "admin" {
+	if user.Role != "admin" && file.UserID != user.ID {
 		http.Error(w, "", http.StatusUnauthorized)
 
 		return
 	}
 
+	_ = os.Remove("../../uploads/" + file.FileName)
 	err = r.DeleteByID(false, int64(id))
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
@@ -239,6 +246,7 @@ func (r *File) RegisterRoutes() {
 	FilesRouter := APIV1Router.PathPrefix("/files/").Subrouter()
 	FilesRouter.HandleFunc("/", r.GetHandlerForPlural).Methods("GET")
 	FilesRouter.HandleFunc("/{id}", r.GetHandler).Methods("GET")
+	FilesRouter.HandleFunc("/download/{filename}", r.DownloadHandler).Methods("GET")
 	FilesRouter.HandleFunc("/", middlewares.LoginGuard(r.PostHandler)).Methods("POST")
 	FilesRouter.HandleFunc("/upload", middlewares.LoginGuard(r.UploadHandler)).Methods("POST")
 	FilesRouter.HandleFunc("/{id}", middlewares.LoginGuard(r.PatchHandler)).Methods("PATCH")
