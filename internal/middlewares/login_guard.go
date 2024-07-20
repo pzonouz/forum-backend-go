@@ -11,7 +11,7 @@ import (
 
 func LoginGuard(f http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		access, err := r.Cookie("access")
+		access, err := r.Cookie("forum_access")
 
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)

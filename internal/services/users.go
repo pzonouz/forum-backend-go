@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 	"net/smtp"
 	"net/url"
@@ -243,19 +242,32 @@ func (u *UserService) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 func (u *UserService) IsUniqueEmailHandler(w http.ResponseWriter, r *http.Request) {
 	user := utils.ReadJSON[models.User](w, r)
-	userFromReqest, _ := utils.GetUserFromRequest(r, w)
+	userFromReqest, err := utils.GetUserFromRequest(r, w)
 	currentUser, _ := Get[models.User](false, "users", u.db, "email", user.Email, nil)
-	if len(currentUser.Email) > 0 && currentUser.Email != userFromReqest.Email {
-		http.Error(w, "", http.StatusBadRequest)
+	if err == nil {
+		if len(currentUser.Email) > 0 && currentUser.Email != userFromReqest.Email {
+			http.Error(w, "", http.StatusBadRequest)
+		}
+	} else {
+		if len(currentUser.Email) > 0 {
+			http.Error(w, "", http.StatusBadRequest)
+		}
 	}
 }
 
 func (u *UserService) IsUniqueNickNameHandler(w http.ResponseWriter, r *http.Request) {
 	user := utils.ReadJSON[models.User](w, r)
-	userFromReqest, _ := utils.GetUserFromRequest(r, w)
+	userFromReqest, err := utils.GetUserFromRequest(r, w)
 	currentUser, _ := Get[models.User](false, "users", u.db, "nickName", user.NickName, nil)
-	if len(currentUser.NickName) > 0 && currentUser.NickName != userFromReqest.NickName {
-		http.Error(w, "", http.StatusBadRequest)
+	if err == nil {
+		if len(currentUser.NickName) > 0 && currentUser.NickName != userFromReqest.NickName {
+			http.Error(w, "", http.StatusBadRequest)
+		}
+	} else {
+		if len(currentUser.NickName) > 0 {
+			http.Error(w, "", http.StatusBadRequest)
+		}
+
 	}
 
 }
@@ -263,7 +275,6 @@ func (u *UserService) IsUniqueNickNameHandler(w http.ResponseWriter, r *http.Req
 func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	userJSON := utils.ReadJSON[models.User](w, r)
 
-	print(userJSON.Password)
 	var excludedFields []string
 	user, err := Get[models.User](false, "users", u.db, "email", userJSON.Email, excludedFields)
 
@@ -294,7 +305,7 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	cookie := http.Cookie{
 		Path:     "/",
-		Name:     "access",
+		Name:     "forum_access",
 		Value:    signedToken,
 		Expires:  expired,
 		HttpOnly: true,
@@ -353,8 +364,6 @@ func (u *UserService) GooleCallbackHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	defer resp.Body.Close()
-
-	log.Printf("%v", string(data))
 
 	type output struct {
 		Data string `json:data`

@@ -125,7 +125,7 @@ func DeleteQueryCreator(isTest bool, tableName string, searchField string) strin
 }
 
 func GetUserFromRequest(r *http.Request, w http.ResponseWriter) (*MyClaims, error) {
-	access, err := r.Cookie("access")
+	access, err := r.Cookie("forum_access")
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func GetUserFromRequest(r *http.Request, w http.ResponseWriter) (*MyClaims, erro
 	)
 
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 
 	claims := token.Claims.(*MyClaims)

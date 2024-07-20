@@ -310,8 +310,8 @@ func (s *Score) RegisterRoutes() {
 	APIV1Router := router.PathPrefix("/api/v1/").Subrouter()
 	ScoresRouter := APIV1Router.PathPrefix("/scores/").Subrouter()
 	// ScoresRouter.HandleFunc("/", r.GetHandlerForPlural).Methods("GET")
-	ScoresRouter.HandleFunc("/questions/{id}", s.GetHandlerForQuestion).Methods("GET")
-	ScoresRouter.HandleFunc("/answers/{id}", s.GetHandlerForAnswer).Methods("GET")
+	ScoresRouter.HandleFunc("/questions/{id}/", s.GetHandlerForQuestion).Methods("GET")
+	ScoresRouter.HandleFunc("/answers/{id}/", s.GetHandlerForAnswer).Methods("GET")
 	ScoresRouter.HandleFunc("/questions/{id}", middlewares.LoginGuard(s.PostHandlerForQuestion)).Methods("POST")
 	ScoresRouter.HandleFunc("/answers/{id}", middlewares.LoginGuard(s.PostHandlerForAnswer)).Methods("POST")
 }

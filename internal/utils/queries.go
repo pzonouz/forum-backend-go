@@ -98,8 +98,8 @@ const CreateFileTableQuery = `
   "filename" text,
   "created_at" timestamp DEFAULT (now()),
   "user_id" bigint REFERENCES users(id),
-  "answer_id" bigint REFERENCES answers(id),  
-  "question_id" bigint REFERENCES questions(id)  
+  "question_id" bigint REFERENCES questions(id),
+  "answer_id" bigint REFERENCES answers(id)
 );`
 
 const CreateViewTableQuery = `CREATE TABLE IF NOT EXISTS "views" (

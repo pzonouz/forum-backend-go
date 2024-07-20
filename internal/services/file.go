@@ -30,7 +30,10 @@ type File struct {
 }
 
 func (r *File) GetHandlerForPlural(w http.ResponseWriter, req *http.Request) {
-	files, err := GetMany[models.File](false, "files", r.db, "", "", "", "", "", "", []string{})
+	searchField := req.URL.Query().Get("search_field")
+	searchFieldValue := req.URL.Query().Get("search_field_value")
+	files, err := GetMany[models.File](false, "files", r.db, "", "", "", searchField, searchFieldValue, "=", []string{})
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

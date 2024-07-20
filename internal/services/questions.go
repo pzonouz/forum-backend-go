@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"database/sql"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -197,8 +196,6 @@ func (r *Question) PostHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	query = `UPDATE files SET question_id=$1 WHERE id=$2`
 	for _, value := range files {
-		log.Printf("file id:%v", value.ID)
-		log.Printf("question id:%v", id)
 		result, err := tx.Exec(query, id, value.ID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -230,8 +227,17 @@ func (r *Question) PatchHandler(w http.ResponseWriter, req *http.Request) {
 
 		return
 	}
-
-	questionPartial := utils.ReadJSON[models.Question](w, req)
+	type Question struct {
+		ID          int64         `json:"id" sql:"id"`
+		Title       string        `json:"title" sql:"title"`
+		Description string        `json:"description" sql:"description"`
+		CreatedAt   string        `json:"createdAt" sql:"created_at"`
+		UserName    string        `json:"userName" sql:"user_name"`
+		UserID      int64         `json:"userId" sql:"user_id"`
+		Files       []models.File `json:"files"`
+	}
+	questionPartial := utils.ReadJSON[Question](w, req)
+	files := questionPartial.Files
 	question, err := r.GetByID(false, int64(id))
 
 	if err != nil {
@@ -265,11 +271,32 @@ func (r *Question) PatchHandler(w http.ResponseWriter, req *http.Request) {
 
 		return
 	}
+	var question2 models.Question
+	question2.ID = questionPartial.ID
+	question2.Title = questionPartial.Title
 
-	err = r.EditByID(false, int64(id), questionPartial)
+	err = r.EditByID(false, int64(id), question2)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	query := `UPDATE files SET question_id=$1 WHERE id=$2`
+	for _, value := range files {
+		result, err := r.db.Exec(query, id, value.ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		rows, err := result.RowsAffected()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if rows == 0 {
+			http.Error(w, "0 rows affected", http.StatusBadRequest)
+
+			return
+		}
 	}
 }
 
@@ -354,8 +381,8 @@ func (r *Question) RegisterRoutes() {
 	APIV1Router := router.PathPrefix("/api/v1/").Subrouter()
 	QuestionsRouter := APIV1Router.PathPrefix("/questions/").Subrouter()
 	QuestionsRouter.HandleFunc("/", r.GetHandlerForPlural).Methods("GET")
-	QuestionsRouter.HandleFunc("/current_user", middlewares.LoginGuard(r.GetHandlerForPluralOfQuestions)).Methods("GET")
-	QuestionsRouter.HandleFunc("/{id}", r.GetHandler).Methods("GET")
+	QuestionsRouter.HandleFunc("/current_user/", middlewares.LoginGuard(r.GetHandlerForPluralOfQuestions)).Methods("GET")
+	QuestionsRouter.HandleFunc("/{id}/", r.GetHandler).Methods("GET")
 	QuestionsRouter.HandleFunc("/{id}/view_up", middlewares.LoginGuard(r.GetViewUpHandler)).Methods("GET")
 	QuestionsRouter.HandleFunc("/", middlewares.LoginGuard(r.PostHandler)).Methods("POST")
 	QuestionsRouter.HandleFunc("/{id}", middlewares.LoginGuard(r.PatchHandler)).Methods("PATCH")
