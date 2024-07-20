@@ -109,8 +109,18 @@ func (a *Answer) PostHandler(w http.ResponseWriter, req *http.Request) {
 
 		return
 	}
+	type Answer struct {
+		ID          int64         `json:"id" sql:"id"`
+		Description string        `json:"description" sql:"description"`
+		CreatedAt   string        `json:"createdAt" sql:"created_at"`
+		UserName    string        `json:"userName" sql:"user_name"`
+		UserID      int64         `json:"userId" sql:"user_id"`
+		QuestionID  int64         `json:"questionId" sql:"question_id"`
+		Solved      bool          `json:"solved" sql:"solved"`
+		Files       []models.File `json:"files"`
+	}
 
-	answer := utils.ReadJSON[models.Answer](w, req)
+	answer := utils.ReadJSON[Answer](w, req)
 
 	if len(answer.Description) < 6 {
 		http.Error(w, "At least 6 character for Description", http.StatusBadRequest)
@@ -123,15 +133,35 @@ func (a *Answer) PostHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
-	answer.QuestionID = int64(questionId)
-	answer.UserID = user.ID
-	answer.UserName = user.NickName
-	id, err := a.Create(false, answer)
+	var answer2 models.Answer
+	answer2.QuestionID = int64(questionId)
+	answer2.UserID = user.ID
+	answer2.UserName = user.NickName
+	answer2.Description = answer.Description
+	id, err := a.Create(false, answer2)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
+	files := answer.Files
+	query := `UPDATE files SET answer_id=$1 WHERE id=$2`
+	for _, value := range files {
+		result, err := a.db.Exec(query, id, value.ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		rows, err := result.RowsAffected()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if rows == 0 {
+			http.Error(w, "0 rows affected", http.StatusBadRequest)
 
+			return
+		}
+	}
 	type data struct {
 		ID int64 `json:"id"`
 	}
