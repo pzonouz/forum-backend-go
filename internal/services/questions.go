@@ -227,17 +227,7 @@ func (r *Question) PatchHandler(w http.ResponseWriter, req *http.Request) {
 
 		return
 	}
-	type Question struct {
-		ID          int64         `json:"id" sql:"id"`
-		Title       string        `json:"title" sql:"title"`
-		Description string        `json:"description" sql:"description"`
-		CreatedAt   string        `json:"createdAt" sql:"created_at"`
-		UserName    string        `json:"userName" sql:"user_name"`
-		UserID      int64         `json:"userId" sql:"user_id"`
-		Files       []models.File `json:"files"`
-	}
-	questionPartial := utils.ReadJSON[Question](w, req)
-	files := questionPartial.Files
+	questionPartial := utils.ReadJSON[models.Question](w, req)
 	question, err := r.GetByID(false, int64(id))
 
 	if err != nil {
@@ -271,32 +261,11 @@ func (r *Question) PatchHandler(w http.ResponseWriter, req *http.Request) {
 
 		return
 	}
-	var question2 models.Question
-	question2.ID = questionPartial.ID
-	question2.Title = questionPartial.Title
 
-	err = r.EditByID(false, int64(id), question2)
+	err = r.EditByID(false, int64(id), question)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-	}
-	query := `UPDATE files SET question_id=$1 WHERE id=$2`
-	for _, value := range files {
-		result, err := r.db.Exec(query, id, value.ID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		rows, err := result.RowsAffected()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if rows == 0 {
-			http.Error(w, "0 rows affected", http.StatusBadRequest)
-
-			return
-		}
 	}
 }
 

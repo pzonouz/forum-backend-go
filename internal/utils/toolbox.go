@@ -3,6 +3,7 @@ package utils
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -151,8 +152,11 @@ func GetUserFromRequest(r *http.Request, w http.ResponseWriter) (*MyClaims, erro
 	return claims, nil
 }
 
-func GetUserRoleFromRequest(r *http.Request, w http.ResponseWriter) string {
-	access, _ := r.Cookie("access")
+func GetUserRoleFromRequest(r *http.Request, w http.ResponseWriter) (string, error) {
+	access, err := r.Cookie("forum_access")
+	if err != nil {
+		return "", err
+	}
 
 	token, err := jwt.ParseWithClaims(
 		access.Value,
@@ -162,15 +166,15 @@ func GetUserRoleFromRequest(r *http.Request, w http.ResponseWriter) string {
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		return "", err
 	}
 
 	claims := token.Claims.(*MyClaims)
 	if claims.Expired < time.Now().Unix() {
-		http.Error(w, "expired", http.StatusUnauthorized)
+		return "", errors.New("StatusUnauthorized")
 	}
 
-	return claims.Role
+	return claims.Role, nil
 }
 
 func GetScoreOfUserToQuestion(db *sql.DB, user_id int64, question_id int64) (int64, error) {

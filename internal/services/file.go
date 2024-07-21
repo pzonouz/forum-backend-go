@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -32,12 +33,32 @@ type File struct {
 func (r *File) GetHandlerForPlural(w http.ResponseWriter, req *http.Request) {
 	searchField := req.URL.Query().Get("search_field")
 	searchFieldValue := req.URL.Query().Get("search_field_value")
-	files, err := GetMany[models.File](false, "files", r.db, "", "", "", searchField, searchFieldValue, "=", []string{})
+	operator := req.URL.Query().Get("operator")
+	files, err := GetMany[models.File](false, "files", r.db, "", "", "", searchField, searchFieldValue, operator, []string{})
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	utils.WriteJSON(w, files)
+}
+
+func (r *File) GetHandlerForNamed(w http.ResponseWriter, req *http.Request) {
+	query := `SELECT * FROM files WHERE title is not NULL`
+	var files []models.File
+	var file models.File
+	rows, err := r.db.Query(query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(&file.ID, &file.Title, &file.FileName, &file.CreatedAt, &file.UserID, &file.QuestionID, &file.AnswerID)
+		files = append(files, file)
+	}
+
 	utils.WriteJSON(w, files)
 }
 
@@ -60,6 +81,38 @@ func (r *File) GetHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	utils.WriteJSON(w, file)
+}
+
+func (r *File) CleanUpHandler(w http.ResponseWriter, req *http.Request) {
+	files, err := os.ReadDir("../../uploads/")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	for _, file := range files {
+		obj, err := Get[models.File](false, "files", r.db, "filename", file.Name(), []string{})
+		if err != nil {
+			if err.Error() == "not found" {
+				err := os.Remove("../../uploads/" + file.Name())
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+				goto down
+			}
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if obj.QuestionID == 0 && obj.AnswerID == 0 && strings.Compare(obj.Title, "") == 0 {
+			err := os.Remove("../../uploads/" + file.Name())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+	down:
+	}
+	query := `DELETE FROM files WHERE title IS NULL AND question_id IS NULL AND answer_id IS NULL`
+	r.db.Exec(query)
 }
 
 func (r *File) DownloadHandler(w http.ResponseWriter, req *http.Request) {
@@ -102,11 +155,33 @@ func (r *File) UploadHandler(w http.ResponseWriter, req *http.Request) {
 		ID       int64  `json:"id"`
 		Filename string `json:"filename"`
 	}
-	user, _ := utils.GetUserFromRequest(req, w)
-	NewFile := &models.File{FileName: random + "." + extension, UserID: user.ID}
-	id, err := r.Create(false, *NewFile)
+	user, err := utils.GetUserFromRequest(req, w)
 	if err != nil {
+		log.Print(err.Error())
+		return
+	}
+	var NewFile *models.File
+	NewFile = &models.File{FileName: random + "." + extension, UserID: user.ID}
+	var id int64
+	questionId, questionErr := strconv.Atoi(req.FormValue("question_id"))
+	var query string
+	answerId, answerErr := strconv.Atoi(req.FormValue("answer_id"))
+	if questionErr != nil && answerErr == nil {
+		query = `INSERT INTO files (filename,user_id,answer_id) VALUES($1,$2,$3) RETURNING "id"`
+		err = r.db.QueryRow(query, NewFile.FileName, NewFile.UserID, int64(answerId)).Scan(&id)
+	}
+	if answerErr != nil && questionErr == nil {
+		query = `INSERT INTO files (filename,user_id,question_id) VALUES($1,$2,$3) RETURNING "id"`
+		err = r.db.QueryRow(query, NewFile.FileName, NewFile.UserID, int64(questionId)).Scan(&id)
+	}
+	if answerErr != nil && questionErr != nil {
+		query = `INSERT INTO files (filename,user_id) VALUES($1,$2) RETURNING "id"`
+		err = r.db.QueryRow(query, NewFile.FileName, NewFile.UserID).Scan(&id)
+	}
+	if err != nil {
+		print(err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	utils.WriteJSON(w, &data{Filename: random + "." + extension, ID: id})
 }
@@ -151,14 +226,14 @@ func (r *File) PatchHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if user.Role != "admin" {
+	if strings.Compare(user.Role, "admin") != 0 {
 		http.Error(w, "", http.StatusUnauthorized)
 
 		return
 	}
 
-	if filePartial.Name != "" && len(filePartial.Name) < 11 {
-		http.Error(w, "At least 10 character for title", http.StatusBadRequest)
+	if strings.Compare(filePartial.Title, "") != 0 && len(filePartial.Title) < 5 {
+		http.Error(w, "At least 5 character for name", http.StatusBadRequest)
 
 		return
 	}
@@ -194,12 +269,29 @@ func (r *File) DeleteHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if user.Role != "admin" && file.UserID != user.ID {
+	if strings.Compare(user.Role, "admin") != 0 && file.UserID != user.ID {
 		http.Error(w, "", http.StatusUnauthorized)
 
 		return
 	}
-
+	if strings.Compare(file.Title, "") != 0 {
+		query := `UPDATE files SET question_id=NULL,answer_id=NULL WHERE id=$1`
+		result, err := r.db.Exec(query, id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		rows, err := result.RowsAffected()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if rows == 0 {
+			http.Error(w, "0 rows affected", http.StatusBadRequest)
+			return
+		}
+		return
+	}
 	_ = os.Remove("../../uploads/" + file.FileName)
 	err = r.DeleteByID(false, int64(id))
 	if err != nil {
@@ -248,10 +340,12 @@ func (r *File) RegisterRoutes() {
 	APIV1Router := router.PathPrefix("/api/v1/").Subrouter()
 	FilesRouter := APIV1Router.PathPrefix("/files/").Subrouter()
 	FilesRouter.HandleFunc("/", r.GetHandlerForPlural).Methods("GET")
+	FilesRouter.HandleFunc("/collection", r.GetHandlerForNamed).Methods("GET")
+	FilesRouter.HandleFunc("/clean_up", middlewares.AdminRoleGuard(r.CleanUpHandler)).Methods("GET")
 	FilesRouter.HandleFunc("/{id}", r.GetHandler).Methods("GET")
 	FilesRouter.HandleFunc("/download/{filename}", r.DownloadHandler).Methods("GET")
 	FilesRouter.HandleFunc("/", middlewares.LoginGuard(r.PostHandler)).Methods("POST")
 	FilesRouter.HandleFunc("/upload", middlewares.LoginGuard(r.UploadHandler)).Methods("POST")
-	FilesRouter.HandleFunc("/{id}", middlewares.LoginGuard(r.PatchHandler)).Methods("PATCH")
+	FilesRouter.HandleFunc("/{id}", middlewares.AdminRoleGuard(r.PatchHandler)).Methods("PATCH")
 	FilesRouter.HandleFunc("/{id}", middlewares.LoginGuard(r.DeleteHandler)).Methods("DELETE")
 }

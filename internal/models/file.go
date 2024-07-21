@@ -2,7 +2,7 @@ package models
 
 type File struct {
 	ID         int64  `json:"id" sql:"id"`
-	Name       string `json:"name" sql:"name"`
+	Title      string `json:"title" sql:"title"`
 	FileName   string `json:"filename" sql:"filename"`
 	CreatedAt  string `json:"createdAt" sql:"created_at"`
 	UserID     int64  `json:"userId" sql:"user_id"`

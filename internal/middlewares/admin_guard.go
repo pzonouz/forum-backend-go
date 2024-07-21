@@ -9,7 +9,12 @@ import (
 
 func AdminRoleGuard(f http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		role := utils.GetUserRoleFromRequest(r, w)
+		role, err := utils.GetUserRoleFromRequest(r, w)
+		if err != nil {
+			http.Error(w, "not admin user", http.StatusUnauthorized)
+
+			return
+		}
 
 		if strings.Compare(role, "admin") != 0 {
 			http.Error(w, "not admin user", http.StatusUnauthorized)
