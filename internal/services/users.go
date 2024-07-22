@@ -324,7 +324,7 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 func (u *UserService) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	cookie := http.Cookie{
 		Path:     "/",
-		Name:     "access",
+		Name:     "forum_access",
 		Value:    "",
 		MaxAge:   -1,
 		HttpOnly: true,
@@ -477,7 +477,7 @@ func (u *UserService) RegisterRoutes() {
 	UsersRouter.HandleFunc("/login", u.LoginHandler).Methods("POST")
 	UsersRouter.HandleFunc("/{id}", middlewares.AdminRoleGuard(u.PatchHandler)).Methods("PATCH")
 	UsersRouter.HandleFunc("/", middlewares.LoginGuard(u.PatchHandler)).Methods("PATCH")
-	UsersRouter.HandleFunc("/logout/", middlewares.LoginGuard(u.LogoutHandler)).Methods("GET")
+	UsersRouter.HandleFunc("/logout/", u.LogoutHandler).Methods("GET")
 	UsersRouter.HandleFunc("/get_google_oauth_link", u.GetGoogleOauthLinkHandler).Methods("GET")
 	UsersRouter.HandleFunc("/{id}", middlewares.AdminRoleGuard(u.DeleteHandler)).Methods("DELETE")
 	UsersRouter.HandleFunc("/forget_password/{email}", u.ForgetPasswordHandler).Methods("GET")
