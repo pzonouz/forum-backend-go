@@ -246,11 +246,11 @@ func (u *UserService) IsUniqueEmailHandler(w http.ResponseWriter, r *http.Reques
 	currentUser, _ := Get[models.User](false, "users", u.db, "email", user.Email, nil)
 	if err == nil {
 		if len(currentUser.Email) > 0 && currentUser.Email != userFromReqest.Email {
-			http.Error(w, "", http.StatusBadRequest)
+			http.Error(w, "", http.StatusConflict)
 		}
 	} else {
 		if len(currentUser.Email) > 0 {
-			http.Error(w, "", http.StatusBadRequest)
+			http.Error(w, "", http.StatusConflict)
 		}
 	}
 }
@@ -261,15 +261,14 @@ func (u *UserService) IsUniqueNickNameHandler(w http.ResponseWriter, r *http.Req
 	currentUser, _ := Get[models.User](false, "users", u.db, "nickName", user.NickName, nil)
 	if err == nil {
 		if len(currentUser.NickName) > 0 && currentUser.NickName != userFromReqest.NickName {
-			http.Error(w, "", http.StatusBadRequest)
+			http.Error(w, "", http.StatusConflict)
 		}
 	} else {
 		if len(currentUser.NickName) > 0 {
-			http.Error(w, "", http.StatusBadRequest)
+			http.Error(w, "", http.StatusConflict)
 		}
 
 	}
-
 }
 
 func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -290,7 +289,7 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	expired := time.Now().Add(time.Hour * 24 * 365 * 5)
+	expired := time.Now().Add(time.Hour * 24 * 365)
 	token := jwt.NewWithClaims(
 		jwt.SigningMethodHS256,
 		utils.MyClaims{ID: user.ID, Expired: expired.Unix(), Role: user.Role, NickName: user.NickName, Email: user.Email},
@@ -477,7 +476,7 @@ func (u *UserService) RegisterRoutes() {
 	UsersRouter.HandleFunc("/login", u.LoginHandler).Methods("POST")
 	UsersRouter.HandleFunc("/{id}", middlewares.AdminRoleGuard(u.PatchHandler)).Methods("PATCH")
 	UsersRouter.HandleFunc("/", middlewares.LoginGuard(u.PatchHandler)).Methods("PATCH")
-	UsersRouter.HandleFunc("/logout/", u.LogoutHandler).Methods("GET")
+	UsersRouter.HandleFunc("/logout", u.LogoutHandler).Methods("GET")
 	UsersRouter.HandleFunc("/get_google_oauth_link", u.GetGoogleOauthLinkHandler).Methods("GET")
 	UsersRouter.HandleFunc("/{id}", middlewares.AdminRoleGuard(u.DeleteHandler)).Methods("DELETE")
 	UsersRouter.HandleFunc("/forget_password/{email}", u.ForgetPasswordHandler).Methods("GET")
