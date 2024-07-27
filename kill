@@ -1,0 +1,6 @@
+root     1035430  0.0  0.0   2800  1664 pts/1    T    10:49   0:00 /bin/sh -c nodemon --exec "cd ./cmd/api && go run ." --ext "*.go" --signal SIGTERM
+root     1035431  0.1  1.2 1287664 51708 pts/1   Tl   10:49   0:00 node /root/.nvm/versions/node/v20.15.1/bin/nodemon --exec cd ./cmd/api && go run . --ext *.go --signal SIGTERM
+root     1035446  0.0  0.0   2800  1664 pts/1    T    10:49   0:00 sh -c cd ./cmd/api && go run .
+root     1035447  0.3  0.4 1238512 19064 pts/1   Tl   10:49   0:02 go run .
+root     1035517  0.0  0.3 1533660 14080 pts/1   Tl   10:49   0:00 /tmp/go-build3288549859/b001/exe/api
+root     1039542  0.0  0.0   6544  2304 pts/1    S+   10:59   0:00 grep --color=auto --exclude-dir=.bzr --exclude-dir=CVS --exclude-dir=.git --exclude-dir=.hg --exclude-dir=.svn --exclude-dir=.idea --exclude-dir=.tox go

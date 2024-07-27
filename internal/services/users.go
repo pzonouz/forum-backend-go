@@ -390,8 +390,8 @@ func (u *UserService) ForgetPasswordHandler(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "No Email", http.StatusBadRequest)
 		return
 	}
-	gmailUsername := utils.GetEnv("GMAIL_USERNAME", "p.zonouz@gmail.com")
-	gmailPassword := utils.GetEnv("GMAIL_PASSWORD", "egfu usxu dcmv xblu")
+	gmailUsername := utils.GetEnv("GMAIL_USERNAME", "automobileforum.ir@gmail.com")
+	gmailPassword := utils.GetEnv("GMAIL_PASSWORD", "mrxp xvcp flkd lyxn")
 	gmailPort := utils.GetEnv("GMAIL_PORT", "587")
 	gmailAddress := utils.GetEnv("GMAIL_SMTP_ADDRESS", "smtp.gmail.com")
 	gmailAuth := smtp.PlainAuth("", gmailUsername, gmailPassword, gmailAddress)
@@ -411,7 +411,7 @@ func (u *UserService) ForgetPasswordHandler(w http.ResponseWriter, r *http.Reque
 	t.Execute(&body, struct {
 		Address string
 	}{
-		Address: `http://localhost/users/forget_password_callback/` + tokenString})
+		Address: `https://automobileforum.ir/users/forget_password_callback/` + tokenString})
 
 	err = smtp.SendMail(gmailAddress+":"+gmailPort, gmailAuth, from, to, body.Bytes())
 	if err != nil {

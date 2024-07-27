@@ -45,7 +45,7 @@ func (r *File) GetHandlerForPlural(w http.ResponseWriter, req *http.Request) {
 
 func (r *File) GetHandlerForNamed(w http.ResponseWriter, req *http.Request) {
 	query := `SELECT * FROM files WHERE title is not NULL`
-	var files []models.File
+	files := []models.File{}
 	var file models.File
 	rows, err := r.db.Query(query)
 	if err != nil {
