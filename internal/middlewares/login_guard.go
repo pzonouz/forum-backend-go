@@ -20,7 +20,7 @@ func LoginGuard(f http.HandlerFunc) http.HandlerFunc {
 		}
 
 		token, err := jwt.ParseWithClaims(access.Value, &utils.MyClaims{}, func(_ *jwt.Token) (interface{}, error) {
-			return []byte("secret"), nil
+			return []byte(utils.GetEnv("JWT_SECRET", "secret")), nil
 		})
 
 		if err != nil {

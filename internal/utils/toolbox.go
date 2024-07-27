@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+
+	"forum-backend-go/internal/utils"
 )
 
 func ReadJSON[T any](w http.ResponseWriter, r *http.Request) T {
@@ -135,7 +137,7 @@ func GetUserFromRequest(r *http.Request, w http.ResponseWriter) (*MyClaims, erro
 		access.Value,
 		&MyClaims{},
 		func(_ *jwt.Token) (interface{}, error) {
-			return []byte("secret"), nil
+			return []byte(utils.GetEnv("JWT_SECRET", "secret")), nil
 		},
 	)
 
@@ -162,7 +164,7 @@ func GetUserRoleFromRequest(r *http.Request, w http.ResponseWriter) (string, err
 		access.Value,
 		&MyClaims{},
 		func(_ *jwt.Token) (interface{}, error) {
-			return []byte("secret"), nil
+			return []byte(utils.GetEnv("JWT_SECRET", "secret")), nil
 		},
 	)
 	if err != nil {

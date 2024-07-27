@@ -294,7 +294,7 @@ func (u *UserService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		jwt.SigningMethodHS256,
 		utils.MyClaims{ID: user.ID, Expired: expired.Unix(), Role: user.Role, NickName: user.NickName, Email: user.Email},
 	)
-	signedToken, err := token.SignedString([]byte("secret"))
+	signedToken, err := token.SignedString([]byte(utils.GetEnv("JWT_SECRET", "secret")))
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
