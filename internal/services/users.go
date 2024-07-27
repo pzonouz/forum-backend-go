@@ -98,13 +98,13 @@ func (u *UserService) GetHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
-	user, err := u.GetByID(false, requestUser.ID)
+	// user, err := u.GetByID(false, requestUser.ID)
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	}
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusBadRequest)
+	// }
 
-	utils.WriteJSON(w, user)
+	utils.WriteJSON(w, requestUser)
 }
 
 func (u *UserService) GetByIDHandler(w http.ResponseWriter, r *http.Request) {
