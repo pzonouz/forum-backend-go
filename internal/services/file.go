@@ -44,7 +44,13 @@ func (r *File) GetHandlerForPlural(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *File) GetHandlerForNamed(w http.ResponseWriter, req *http.Request) {
-	query := `SELECT * FROM files WHERE title is not NULL`
+	searchFieldValue := req.URL.Query().Get("title")
+	var query string
+	if strings.Compare(searchFieldValue, "") == 0 {
+		query = `SELECT * FROM files WHERE title is not NULL`
+	} else {
+		query = `SELECT * FROM files WHERE title is not NULL AND title LIKE '%` + searchFieldValue + `%'`
+	}
 	files := []models.File{}
 	var file models.File
 	rows, err := r.db.Query(query)
@@ -449,7 +455,7 @@ func (r *File) RegisterRoutes() {
 	APIV1Router := router.PathPrefix("/api/v1/").Subrouter()
 	FilesRouter := APIV1Router.PathPrefix("/files/").Subrouter()
 	FilesRouter.HandleFunc("/", r.GetHandlerForPlural).Methods("GET")
-	FilesRouter.HandleFunc("/collection", r.GetHandlerForNamed).Methods("GET")
+	FilesRouter.HandleFunc("/collection/", r.GetHandlerForNamed).Methods("GET")
 	FilesRouter.HandleFunc("/clean_up", middlewares.AdminRoleGuard(r.CleanUpHandler)).Methods("GET")
 	FilesRouter.HandleFunc("/{id}", r.GetHandler).Methods("GET")
 	FilesRouter.HandleFunc("/download/{filename}", r.DownloadHandler).Methods("GET")
