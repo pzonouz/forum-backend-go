@@ -217,11 +217,6 @@ func (r *File) UploadHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *File) UploadAdminHandler(w http.ResponseWriter, req *http.Request) {
-	err := req.ParseMultipartForm(50 << 20)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
 	file, handler, err := req.FormFile("file")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
