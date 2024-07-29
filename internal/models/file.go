@@ -8,4 +8,5 @@ type File struct {
 	UserID     int64  `json:"userId" sql:"user_id"`
 	QuestionID int64  `json:"questionId" sql:"question_id"`
 	AnswerID   int64  `json:"answerId" sql:"answer_id"`
+	FileType   string `json:"fileType" sql:"filetype"`
 }

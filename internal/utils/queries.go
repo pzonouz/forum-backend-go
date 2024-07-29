@@ -92,6 +92,7 @@ const CreateScoreTableQueryTest = `
   );`
 
 const CreateFileTableQuery = `
+  --CREATE TYPE FileType as ENUM('schematic','dump');
   CREATE TABLE IF NOT EXISTS files (
   "id" bigserial PRIMARY KEY,
   "title" varchar UNIQUE,
@@ -99,7 +100,16 @@ const CreateFileTableQuery = `
   "created_at" timestamp DEFAULT (now()),
   "user_id" bigint REFERENCES users(id),
   "question_id" bigint REFERENCES questions(id),
-  "answer_id" bigint REFERENCES answers(id)
+  "answer_id" bigint REFERENCES answers(id),
+  "filetype" FileType NOT NULL DEFAULT('schematic')
+);`
+
+const CreateFileRequestTableQuery = `CREATE TABLE IF NOT EXISTS "filerequests" (
+  "id" bigserial PRIMARY KEY,
+  "request" text,
+  "created_at" timestamp DEFAULT (now()),
+  "user_id" bigint REFERENCES users(id) ON DELETE CASCADE,
+  "done" boolean DEFAULT (false)
 );`
 
 const CreateViewTableQuery = `CREATE TABLE IF NOT EXISTS "views" (

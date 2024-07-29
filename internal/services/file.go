@@ -47,9 +47,9 @@ func (r *File) GetHandlerForNamed(w http.ResponseWriter, req *http.Request) {
 	searchFieldValue := req.URL.Query().Get("title")
 	var query string
 	if strings.Compare(searchFieldValue, "") == 0 {
-		query = `SELECT * FROM files WHERE title is not NULL`
+		query = `SELECT id,title,filename,created_at,user_id,COALESCE(question_id,0),COALESCE(answer_id,0),filetype FROM files WHERE title is not NULL`
 	} else {
-		query = `SELECT * FROM files WHERE title is not NULL AND title LIKE '%` + searchFieldValue + `%'`
+		query = `SELECT id,title,filename,created_at,user_id,COALESCE(question_id,0),COALESCE(answer_id,0),filetype FROM files WHERE title is not NULL AND title LIKE '%` + searchFieldValue + `%'`
 	}
 	files := []models.File{}
 	var file models.File
@@ -61,7 +61,11 @@ func (r *File) GetHandlerForNamed(w http.ResponseWriter, req *http.Request) {
 	defer rows.Close()
 
 	for rows.Next() {
-		err = rows.Scan(&file.ID, &file.Title, &file.FileName, &file.CreatedAt, &file.UserID, &file.QuestionID, &file.AnswerID)
+		err = rows.Scan(&file.ID, &file.Title, &file.FileName, &file.CreatedAt, &file.UserID, &file.QuestionID, &file.AnswerID, &file.FileType)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		files = append(files, file)
 	}
 
@@ -119,6 +123,26 @@ func (r *File) CleanUpHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	query := `DELETE FROM files WHERE title IS NULL AND question_id IS NULL AND answer_id IS NULL`
 	r.db.Exec(query)
+}
+
+func downloadFile(filepath string, url string) error {
+	// Create the file
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// Get the data
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
+	return err
 }
 
 func (r *File) DownloadHandler(w http.ResponseWriter, req *http.Request) {

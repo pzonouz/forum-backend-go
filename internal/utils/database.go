@@ -107,6 +107,12 @@ func (d *database) GetDB(isTest bool) (*sql.DB, error) {
 		return nil, err
 	}
 
+	err = d.RunQueryOnDB(CreateFileRequestTableQuery)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return d.db, nil
 }
 
