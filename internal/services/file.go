@@ -249,10 +249,6 @@ func (r *File) UploadAdminHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	title := req.FormValue("title")
-	if len(title) < 10 {
-		http.Error(w, "", http.StatusConflict)
-		return
-	}
 	var NewFile *models.File
 	NewFile = &models.File{FileName: random + "." + extension, UserID: user.ID, Title: title}
 	var id int64
