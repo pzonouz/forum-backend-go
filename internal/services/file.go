@@ -49,7 +49,7 @@ func (r *File) GetHandlerForNamed(w http.ResponseWriter, req *http.Request) {
 	if strings.Compare(searchFieldValue, "") == 0 {
 		query = `SELECT id,title,filename,created_at,user_id,COALESCE(question_id,0),COALESCE(answer_id,0),filetype FROM files WHERE title is not NULL ORDER BY id DESC LIMIT 50`
 	} else {
-		query = `SELECT id,title,filename,created_at,user_id,COALESCE(question_id,0),COALESCE(answer_id,0),filetype FROM files WHERE title is not NULL AND Lower(title) LIKE '%` + searchFieldValue + `%' ORDER BY id DESC  LIMIT 50`
+		query = `SELECT id,title,filename,created_at,user_id,COALESCE(question_id,0),COALESCE(answer_id,0),filetype FROM files WHERE title is not NULL AND Lower(title) LIKE '%` + strings.ToLower(searchFieldValue) + `%' ORDER BY id DESC  LIMIT 50`
 	}
 	files := []models.File{}
 	var file models.File
