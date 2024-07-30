@@ -44,7 +44,7 @@ func (r *Question) GetHandlerForPlural(w http.ResponseWriter, req *http.Request)
 	orderDirection := req.URL.Query().Get("order_direction")
 	searchFiled := req.URL.Query().Get("search_field")
 	searchFiledValue := req.URL.Query().Get("search_field_value")
-	query := `SELECT qs.id,qs.title,qs.description,qs.created_at,COUNT(DISTINCT CASE WHEN ans.solved THEN 1 ELSE NULL END) as solved,us.nickname,us.id,COUNT(DISTINCT vw.id) as view_count,COUNT(DISTINCT ans.id) as answer_count,SUM(DISTINCT CASE WHEN sc.operator='plus' THEN 1 ELSE -1 END) as score FROM questions as qs LEFT JOIN "views" as vw ON vw.question_id=qs.id LEFT JOIN users as us ON qs.user_id=us.id LEFT JOIN answers as ans ON ans.question_id=qs.id LEFT JOIN scores as sc ON sc.question_id=qs.id GROUP BY qs.id,us.nickname,us.id`
+	query := `SELECT qs.id,qs.title,qs.description,qs.created_at,COUNT(DISTINCT CASE WHEN ans.solved THEN 1 ELSE NULL END) as solved,us.nickname,us.id,COUNT(DISTINCT vw.id) as view_count,COUNT(DISTINCT ans.id) as answer_count,SUM(DISTINCT CASE WHEN sc.operator='plus' THEN 1 WHEN sc.operator='minus' THEN -1 ELSE 0 END) as score FROM questions as qs LEFT JOIN "views" as vw ON vw.question_id=qs.id LEFT JOIN users as us ON qs.user_id=us.id LEFT JOIN answers as ans ON ans.question_id=qs.id LEFT JOIN scores as sc ON sc.question_id=qs.id GROUP BY qs.id,us.nickname,us.id`
 
 	if strings.Compare(searchFiled, "") != 0 {
 		query = `SELECT * FROM (` + query
