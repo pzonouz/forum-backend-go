@@ -34,7 +34,7 @@ type QuestionModel struct {
 	ViewCount   int64  `json:"view"`
 	UserName    string `json:"userName"`
 	UserID      int64  `json:"userId"`
-	ScoreCount  int64  `json:"scoreCount"`
+	Score       int64  `json:"score"`
 	AnswerCount int64  `json:"answerCount"`
 	Solved      bool   `json:"solved"`
 }
@@ -76,7 +76,7 @@ func (r *Question) GetHandlerForPlural(w http.ResponseWriter, req *http.Request)
 
 	for rows.Next() {
 		question := QuestionModel{}
-		_ = rows.Scan(&question.ID, &question.Title, &question.Description, &question.CreatedAt, &question.Solved, &question.UserName, &question.UserID, &question.ViewCount, &question.AnswerCount, &question.ScoreCount)
+		_ = rows.Scan(&question.ID, &question.Title, &question.Description, &question.CreatedAt, &question.Solved, &question.UserName, &question.UserID, &question.ViewCount, &question.AnswerCount, &question.Score)
 		questions = append(questions, question)
 	}
 
