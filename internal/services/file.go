@@ -60,7 +60,6 @@ func (r *File) GetHandlerForNamed(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 		query = query + ` ORDER BY id DESC`
-		print(query)
 	}
 	files := []models.File{}
 	var file models.File
