@@ -262,7 +262,7 @@ func (r *Question) PatchHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = r.EditByID(false, int64(id), question)
+	err = r.EditByID(false, int64(id), questionPartial)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
